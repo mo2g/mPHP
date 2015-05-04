@@ -193,7 +193,7 @@ function U($strUrl = '',$true = true) {
 		$url = substr($strUrl,0,$leng).'/';
 		$strUrl = strtr($strUrl,array($url => ''));
 	} else {
-		$url = "http://{$_SERVER['SERVER_NAME']}/";
+		$url = INDEX_URL;
 	}
 	
 	if($CFG['url_type'] == 'DIR') $flag = '/';

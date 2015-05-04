@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 创建时间:2012-03-01
-最后更新时间: 2015-01-17
+最后更新时间: 2015-05-02
 */
 if( !defined('INIT_MPHP') ) exit;
 
@@ -17,6 +17,7 @@ class mPHP {
 	public $controller;
 
 	private function __construct() {
+		//router::init();
 		safe::filter($_GET);
 		safe::filter($_POST);
 		safe::filter($_COOKIE);
@@ -97,11 +98,63 @@ class mPHP {
 	}
 }
 
+//简单路由
+class router {
+	public static function init() {
+		$path_info = self::path_info();
+		if( !empty($path_info)) $splits = explode('/', trim($path_info, '/'));
+		else $splits='';
+
+		$_GET['c'] = isset($_GET['c']) ? $_GET['c'] : 'index';
+		$_GET['a'] 	= isset($_GET['a']) ? $_GET['a']  : 'index';
+
+		if( !empty($splits[0]) ) {
+			$_GET['c'] = $splits[0];
+			$_GET['a'] = isset($splits[1]) ? $splits[1] : 'index';
+		}
+
+		$count = count($splits);
+		for($i=2; $i<$count; $i+=2) {
+			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]]=$splits[$i+1];
+		}
+		if( is_array($_GET)) $_REQUEST = array_merge($_GET, $_REQUEST);
+		mlog($_GET);
+	}
+
+	public static function path_info() {
+		$path_info='';
+		if( !empty($_SERVER['PATH_INFO']) ) {
+			global $CFG;
+			$path_info = $_SERVER['PATH_INFO'];
+			//是否开启了路由
+			if( !empty($CFG['router']) ) {
+				$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
+				$config = $CFG['router'];
+
+				if( isset($config[$first_param])) {
+					foreach ($config[$first_param] as $v) {
+						$count = 0; //记录成功替换的个数
+						$path_info = preg_replace($v[0],$v[1],$path_info,-1,$count);
+						if($count > 0) break; //只要匹配上一个，则停止匹配，故在router.config.php从上到下有优先权。
+					}
+				}
+			}
+
+			$html_url_subffix = $CFG['url_suffix'];
+			if( $html_url_subffix && TRUE == ($url_suffix_pos = strrpos($path_info, $html_url_subffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
+			if( $CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
+			unset($CFG);
+		}
+		return $path_info;
+	}
+
+}
+
 
 //控制器
 class controller {
 	public static $view = 0;
-	public static $visit = 0;
+	public static $visit = 0;   
 	public static $check = 0;
 	public static $register = array();
 	public static $CFG = 0;
@@ -133,8 +186,6 @@ class controller {
 		if(empty(self::$register[$service]) && ( $service != 'controller' ) ) {
 			if( !defined('INIT_ADMIN') ) {
 				$service = str_replace('Controller','',$service);
-				//$service = "{$service}Service";
-				//self::$register[$service] = new $service;
 				self::$register[$service] = S($service);
 			}
 		}
@@ -299,7 +350,7 @@ class view {
 			$CFG['java'] = 0;
 		}
 		
-		if( is_file($out) ) {
+		if( file_exists($out) ) {
 			//判断是否有文件被修改
 			$flag = 0;//0:没有文件被修改;1:有文件被修改
 			foreach($arrFile as $file) {
@@ -371,21 +422,25 @@ class view {
 		elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}\">\n";
 	}
 	
+	/*转换所有include语句
+	<?php include 'a' ?>
+	<?php include 'b' ?>
+	转成 
+	<?php include TPL_C_PATH.'a.tpl.php' ?>
+	<?php include TPL_C_PATH.'b.tpl.php' ?>
+	并编译生成
+	TPL_C_PATH.'a.tpl.php'文件
+	TPL_C_PATH.'b.tpl.php'文件
+	*/
 	public function _include($tpl, $file = '') {
 		if( is_array($this->data) ) {
 			foreach($this->data as $key => &$val) $$key = $val;
 		}
-		/*
-		if( substr($_GET['c'],0,5) == 'admin' ) {
-			$tpl_file = TPL_MPHP."{$tpl}.tpl.html";
-		} else {
-			$tpl_file = TPL_PATH."{$tpl}.tpl.html";
-		}
-		*/
+
 		$tpl_file = TPL_PATH."{$tpl}.tpl.html";
 		$tpl_c_file = TPL_C_PATH . "{$tpl}.tpl.php";
 		//判断是否需要重新编译模版
-		if( !is_file($tpl_c_file) || filemtime($tpl_file) != filemtime($tpl_c_file) ) {
+		if( !file_exists($tpl_c_file) || filemtime($tpl_file) != filemtime($tpl_c_file) ) {
 			//tpl模版 转译 php文件 并保存
 			$html = file_get_contents($tpl_file);
 			$html = '<?php if(!defined("INIT_MPHP"))exit;?>' . $this->tplCompile($html);//替换标签
@@ -397,91 +452,13 @@ class view {
 		ob_start();
 		include $tpl_c_file;
 		$html = ob_get_clean();
-		//echo $html;
-		//保存静态html
 		echo $html;
+
 		if($file == '') $file = CACHE_HTML_PATH . "{$tpl}.html";
 		$arrData['file'] = $file;
 		$arrData['html'] = $html;
 		return $arrData;
 	}
-	
-	/*转换所有include语句
-	<?php include 'a' ?>
-	<?php include 'b' ?>
-	转成 
-	<?php include TPL_C_PATH.'a.tpl.php' ?>
-	<?php include TPL_C_PATH.'b.tpl.php' ?>
-	并编译生成
-	TPL_C_PATH.'a.tpl.php'文件
-	TPL_C_PATH.'b.tpl.php'文件
-	*/
-	/*
-	public function _include2($str) {
-		global $CFG;
-		preg_match_all("/<\?php *include *['\"](.*)['\"];* *\?>/", $str, $files);
-		if( !empty($files[1]) ) {
-			foreach( $files[1] as $file ) {
-				$arrData[$file] = strtr($file,array('.tpl.html'=>'.tpl.php'));
-				if( substr($_GET['c'],0,5) == 'admin' ) {
-					$tpl = TPL_MPHP."admin/{$file}";
-					$tpl_c = TPL_C_PATH."admin/$arrData[$file]";
-				} else {
-					$tpl = TPL_PATH.$file;
-					$tpl_c = TPL_C_PATH.$arrData[$file];
-				}
-				$html = file_get_contents($tpl);
-				$html = $this->tplCompile($html);//替换标签
-				$html = strtr($html,array('.tpl.html'=>'.tpl.php'));
-				file_put_contents($tpl_c,$html);
-				
-				preg_match_all("/<\?php *include *['\"](.*)['\"];* *\?>/", $html, $files2);
-				if( !empty($files2[1]) ) {
-					foreach( $files2[1] as $file2 ) {
-						$file2 = strtr($file2,array('.tpl.php'=>'.tpl.html'));
-						$arrData2[$file2] = strtr($file2,array('.tpl.html'=>'.tpl.php'));
-						if( substr($_GET['c'],0,5) == 'admin' ) {
-							$tpl = TPL_MPHP."admin/{$file2}";
-							$tpl_c = TPL_C_PATH."admin/$arrData2[$file2]";
-						} else {
-							$tpl = TPL_PATH.$file2;
-							$tpl_c = TPL_C_PATH.$arrData2[$file2];
-						}
-						
-						$html = file_get_contents($tpl);
-						$html = $this->tplCompile($html);//替换标签
-						$html = strtr($html,$arrData2);
-						file_put_contents($tpl_c,$html);
-					}
-				}
-				
-			}
-			$str = strtr($str,$arrData);
-		}
-		unset($CFG);
-		return $str;
-	}
-	*/
-
-	
-	//如果存在静态html，则加载页面
-	//$file:静态文件
-	//$cacheTime:缓存时间
-	/*
-	public function cache($file,$cacheTime) {
-		global $CFG;
-		$time = $CFG['start_time'];
-		if( (is_file($file) && (filemtime($file) + $cacheTime >= $time) ) && !$CFG['debug'] ) {
-			unset($CFG);
-			include $file;exit;
-			return true;
-		} else {
-			unset($CFG);
-		}
-		
-		return false;
-	}
-	*/
 	
 	public function cache($file,$cacheTime) {
 		global $CFG;
@@ -489,7 +466,7 @@ class view {
 		if( isset($_SESSION['user']['admin']) && $_SESSION['user']['admin'] < 9 ) {
 			$cacheTime = 0;
 		}
-		$createTime = is_file($file) ? filemtime($file) : 0;
+		$createTime = file_exists($file) ? filemtime($file) : 0;
 		if( ($createTime + $cacheTime >= $time ) && !$CFG['debug'] ) {
 			unset($CFG);
 			$createTime = date("D, d M Y H:i:s",$createTime);
@@ -500,7 +477,6 @@ class view {
 			} else {
 				include $file;
 			}
-			exit;
 			return true;
 		} else {
 			unset($CFG);
