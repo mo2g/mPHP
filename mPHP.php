@@ -14,18 +14,104 @@ include MPHP_PATH.'inc/plus.php';//加载常用函数集
 class mPHP {
 	private static $mPHP = 0;
 	
+	public $autoLoadPath = array();
 	public $controller;
 
 	private function __construct() {
-		//router::init();
-		safe::filter($_GET);
-		safe::filter($_POST);
-		safe::filter($_COOKIE);
 		$this->controller = new controller();
+		spl_autoload_register('self::autoload');
 	}
 	
 	public function run() {
+		router::init();
+		safe::safeGPC();
 		$this->controller->load();
+	}
+
+	public function addAutoLoadPath($path) {
+		$this->autoLoadPath[] = $path;
+	}
+
+	public static function autoloadNameSpace($className) {
+		$fileName = strtr($className,array('\\' => '/'));
+		$fileName .= '.php';
+		foreach( $this->autoLoadPath as $path ) {
+			$file = $path . $fileName;
+			if( is_file($file) ) {
+				include $file;
+			} else {
+				goto_404();
+			}
+		}
+	}
+
+	/*
+	功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
+	*/
+	public static function autoload($className) {
+		static $view = false;
+		static $flag = false;
+
+		if( $view === false ) $view =new view();
+		if( $flag === false ) $flag = $GLOBALS['CFG']['404'];
+		
+		if( substr($className,-10) == 'Controller' ) {
+			if( is_file(CONTROLLERS_PATH."{$className}.php") ) include CONTROLLERS_PATH."{$className}.php";
+			else {
+				if( $flag ) {
+					goto_404();
+				} else {
+					$view->data['title'] = '控制器不存在！';
+					$view->data['msg'] = "{$className}.php 不存在!";
+					$view->loadTpl('error');
+				}
+			}
+		} elseif( substr($className,-5) == 'Model' ) {
+			if( is_file(MODELS_MPHP."{$className}.php") )		include MODELS_MPHP."{$className}.php";
+			elseif( is_file(MODELS_MPHP."system/{$className}.php") )	include MODELS_MPHP."system/{$className}.php";
+			elseif( is_file(MODELS_PATH."{$className}.php") )	include MODELS_PATH."{$className}.php";
+			else {
+				if( $flag ) {
+					goto_404();
+				} else {
+					$view->data['title'] = 'Model模块不存在！';
+					$view->data['msg'] = "{$className}.php 不存在!";
+					$view->loadTpl('error');
+				}
+			}
+		} elseif(substr($className,-7) == 'Service') {
+			if( is_file(SERVICES_MPHP."{$className}.php") )		include SERVICES_MPHP."{$className}.php";
+			elseif( is_file(SERVICES_PATH."{$className}.php") )	include SERVICES_PATH."{$className}.php";
+			else {
+				if( $flag ) {
+					goto_404();
+				} else {
+					$view->data['title'] = 'service模块不存在！';
+					$view->data['msg'] = "{$className}.php 不存在!";
+					$view->loadTpl('error');
+				}
+			}
+		} elseif(substr($className,-3) == 'Dao') {
+			if( is_file(DAOS_MPHP."{$className}.php") )		include DAOS_MPHP."{$className}.php";
+			elseif( is_file(DAOS_PATH."{$className}.php") )	include DAOS_PATH."{$className}.php";
+			else {
+				if( $flag ) {
+					goto_404();
+				} else {
+					$view->data['title'] = 'dao模块不存在！';
+					$view->data['msg'] = "{$className}.php 不存在!";
+					$view->loadTpl('error');
+				}
+			}
+		} else {
+			if( $flag ) {
+				goto_404();
+			} else {
+				$view->data['title'] = '访问错误！';
+				$view->data['msg'] = "未定义操作 $className";
+				$view->loadTpl('error');
+			}
+		}
 	}
 	
 	public static function init() {
@@ -87,7 +173,6 @@ class mPHP {
 		unset($CFG);
 	}
 	
-	
 	//初始化数据库
 	public static function initDb() {
 		global $CFG;
@@ -100,29 +185,31 @@ class mPHP {
 
 //简单路由
 class router {
+	public static $controller = 'index';
+	public static $action = 'index';
+
 	public static function init() {
 		$path_info = self::path_info();
-		if( !empty($path_info)) $splits = explode('/', trim($path_info, '/'));
-		else $splits='';
-
-		$_GET['c'] = isset($_GET['c']) ? $_GET['c'] : 'index';
-		$_GET['a'] 	= isset($_GET['a']) ? $_GET['a']  : 'index';
-
-		if( !empty($splits[0]) ) {
-			$_GET['c'] = $splits[0];
-			$_GET['a'] = isset($splits[1]) ? $splits[1] : 'index';
+		$path_info = preg_replace('#^/\w+\.php#', '', $path_info);
+mlog($path_info);
+		if( !empty($path_info) ) {
+			$splits = explode('/', trim($path_info, '/'));
+		} else {
+			return false;
 		}
 
+		if( empty($_GET['c']) ) $_GET['c'] = empty($splits[0]) ? self::$controller : $splits[0];
+		if( empty($_GET['a']) ) $_GET['a'] = empty($splits[1]) ? self::$action : $splits[1];
+
 		$count = count($splits);
-		for($i=2; $i<$count; $i+=2) {
+		for($i = 2; $i < $count; $i += 2) {
 			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]]=$splits[$i+1];
 		}
 		if( is_array($_GET)) $_REQUEST = array_merge($_GET, $_REQUEST);
-		mlog($_GET);
 	}
 
 	public static function path_info() {
-		$path_info='';
+		$path_info = '';
 		if( !empty($_SERVER['PATH_INFO']) ) {
 			global $CFG;
 			$path_info = $_SERVER['PATH_INFO'];
@@ -130,7 +217,7 @@ class router {
 			if( !empty($CFG['router']) ) {
 				$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
 				$config = $CFG['router'];
-
+				
 				if( isset($config[$first_param])) {
 					foreach ($config[$first_param] as $v) {
 						$count = 0; //记录成功替换的个数
@@ -139,7 +226,6 @@ class router {
 					}
 				}
 			}
-
 			$html_url_subffix = $CFG['url_suffix'];
 			if( $html_url_subffix && TRUE == ($url_suffix_pos = strrpos($path_info, $html_url_subffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
 			if( $CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
@@ -181,7 +267,6 @@ class controller {
 		if( !isset($_SESSION) ) session_start();
 		
 		//if(!self::$visit) self::$visit = M('visit');
-		
 		$service = get_class($this);
 		if(empty(self::$register[$service]) && ( $service != 'controller' ) ) {
 			if( !defined('INIT_ADMIN') ) {
@@ -189,13 +274,13 @@ class controller {
 				self::$register[$service] = S($service);
 			}
 		}
+		
 		if( $service != 'controller' && !defined('INIT_ADMIN')) {
 			$this->service = self::$register[$service];
 		}
 	}
 	
 	public function load() {
-		
 		if( isset($_GET['c']) ) $controller = "{$_GET['c']}Controller";
 		elseif( isset($_POST['c']) ) $controller = "{$_POST['c']}Controller";
 		else $controller = 'indexController';
@@ -203,12 +288,14 @@ class controller {
 		if( isset($_GET['a']) ) $action = "{$_GET['a']}Action";
 		elseif( isset($_POST['a']) ) $action = "{$_POST['a']}Action";
 		else $action = 'indexAction';
-		
+
 		if( method_exists($controller,$action) ) {
 			$controller = new $controller;
 			call_user_func(array($controller,$action));
 		} else {
-			goto_503();
+			if( !_exit() ) {
+				goto_503();
+			}
 			/*
 			self::$view->data['title'] = '对不起，此页面暂不开放';
 			$file = CACHE_PATH . 'html/build.html';

@@ -2,63 +2,9 @@
 /*
 作者:moyancheng
 最后更新时间:2013-05-17
-最后更新时间:2015-01-17
+最后更新时间:2015-05-04
 */
 if( !defined('INIT_MPHP') ) exit;
-
-/*
-功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
-*/
-function __autoload($className) {
-	static $view = false;
-	static $flag = false;
-
-	if( $view === false ) $view = new view();
-	if( $flag === false ) $flag = $GLOBALS['CFG']['404'];
-	
-	if( substr($className,-10) == 'Controller' ) {
-		if( is_file(CONTROLLERS_PATH."{$className}.php") ) include CONTROLLERS_PATH."{$className}.php";
-		else {
-			if( $flag ) goto_404();
-			$view->data['title'] = '控制器不存在！';
-			$view->data['msg'] = "{$className}.php 不存在!";
-			$view->loadTpl('error');
-		}
-	} elseif( substr($className,-5) == 'Model' ) {
-		if( is_file(MODELS_MPHP."{$className}.php") )		include MODELS_MPHP."{$className}.php";
-		elseif( is_file(MODELS_MPHP."system/{$className}.php") )	include MODELS_MPHP."system/{$className}.php";
-		elseif( is_file(MODELS_PATH."{$className}.php") )	include MODELS_PATH."{$className}.php";
-		else {
-			if( $flag ) goto_404();
-			$view->data['title'] = 'Model模块不存在！';
-			$view->data['msg'] = "{$className}.php 不存在!";
-			$view->loadTpl('error');
-		}
-	} elseif(substr($className,-7) == 'Service') {
-		if( is_file(SERVICES_MPHP."{$className}.php") )		include SERVICES_MPHP."{$className}.php";
-		elseif( is_file(SERVICES_PATH."{$className}.php") )	include SERVICES_PATH."{$className}.php";
-		else {
-			if( $flag ) goto_404();
-			$view->data['title'] = 'service模块不存在！';
-			$view->data['msg'] = "{$className}.php 不存在!";
-			$view->loadTpl('error');
-		}
-	} elseif(substr($className,-3) == 'Dao') {
-		if( is_file(DAOS_MPHP."{$className}.php") )		include DAOS_MPHP."{$className}.php";
-		elseif( is_file(DAOS_PATH."{$className}.php") )	include DAOS_PATH."{$className}.php";
-		else {
-			if( $flag ) goto_404();
-			$view->data['title'] = 'dao模块不存在！';
-			$view->data['msg'] = "{$className}.php 不存在!";
-			$view->loadTpl('error');
-		}
-	} else {
-		if( $flag ) goto_404();
-		$view->data['title'] = '访问错误！';
-		$view->data['msg'] = "未定义操作 $className";
-		$view->loadTpl('error');
-	}
-}
 
 //显示某时刻运行详情
 //使用示例:
@@ -233,7 +179,7 @@ function P($val,$true = true) {
 	//elseif( is_string($val) || is_numeric($val) ) echo $val;
 	else var_dump($val);
 	echo '</pre>';
-	if($true) exit;
+	if($true) _exit();
 }
 
 //返回唯一的 Service 实例
@@ -536,7 +482,7 @@ function goto_503() {
 	$view->cache($file,$CFG['html_cache_time']);
 	$view->loadTpl('503');
 	unset($CFG);
-	exit;
+	return true;
 }
 
 //404，页面没找到
@@ -546,8 +492,11 @@ function goto_404() {
 	$view = new view();
 	//$file = CACHE_PATH . 'html/404.html';
 	$file = INDEX_PATH . '404.html';
-	$view->cache($file,$CFG['html_cache_time']);
-	//P($file);
+	$cache = $view->cache($file,$CFG['html_cache_time']);
+	if( $cache ) {
+		_exit();
+		return true;
+	}
 	$is_moblie = is_mobile();
 	
 	$arrCss = array(
@@ -579,7 +528,7 @@ function goto_404() {
 	$arrTypeTop = $blogService->getTypeByTop();
 	$arrBlogNav = $arrTypeAll[$arrBlogType[0]['id']];
 	$arrTags = $blogService->getTagsAll();
-	$arrNav = $blogService->getCategoryTitleByEnglishInBlogNav('blog',$arrBlogNav);
+	//$arrNav = $blogService->getCategoryTitleByEnglishInBlogNav('blog',$arrBlogNav);
 	
 	//只显示包含5篇以上文章的标签
 	foreach( $arrTags as $key => $row ) {
@@ -593,7 +542,6 @@ function goto_404() {
 	$view->data['css'] = $css;
 	$view->data['script'] = $js;
 	$view->data['title'] = '404';
-	
 	if( $is_mobile ) {
 		if($CFG['404']) $view->loadTpl('mobile_404',$file);
 		else $view->loadTpl('admin/mobile_404',$file);
@@ -602,7 +550,7 @@ function goto_404() {
 		else $view->loadTpl('admin/404',$file);
 	}
 	unset($CFG);
-	exit;
+	_exit();
 }
 
 //403，页面没权限
@@ -611,17 +559,21 @@ function goto_403() {
 	static $view = 0;
 	if(!$view) $view = new view();
 	$file = CACHE_PATH . 'html/403.html';
-	$view->cache($file,$CFG['html_cache_time']);
+	$cache = $view->cache($file,$CFG['html_cache_time']);
+	if( $cache) {
+		_exit();
+		return true;
+	}
 	$view->loadTpl('403');
 	unset($CFG);
-	exit;
+	_exit();
 }
 
 //301，页面重定向
 function goto_301($url) {
 	header('HTTP/1.1 301 Moved Permanently');
 	header("Location: {$url}");
-	exit;
+	_exit();
 }
 
 
@@ -805,4 +757,18 @@ function mlog($log = '',$file = '') {
 	fwrite($fp,"执行日期：".strftime("%Y-%m-%d %H:%M:%S",time())."\n".$log."\n");
 	flock($fp, LOCK_UN);
 	fclose($fp);
+}
+
+/*
+swoole中不允许试用exit，所以使用如下方式记录PHP是否执行过  _exit()
+已经执行返回：true
+没有执行返回：false
+*/
+function _exit() {
+	if( defined('EXIT_MPHP') ) {
+		return true;
+	} else {
+		define('EXIT_MPHP' , 1);
+		return false;
+	}
 }
