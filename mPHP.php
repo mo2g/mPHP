@@ -12,9 +12,9 @@ include MPHP_PATH.'inc/plus.php';//加载常用函数集
 
 //核心类
 class mPHP {
-	private static $mPHP = 0;
+	private static $mPHP = false;
 	
-	public $autoLoadPath = array();
+	public $namespace = array();
 	public $controller;
 
 	private function __construct() {
@@ -28,14 +28,14 @@ class mPHP {
 		$this->controller->load();
 	}
 
-	public function addAutoLoadPath($path) {
-		$this->autoLoadPath[] = $path;
+	public function addNameSpace($path) {
+		$this->namespace[] = $path;
 	}
 
 	public static function autoloadNameSpace($className) {
 		$fileName = strtr($className,array('\\' => '/'));
 		$fileName .= '.php';
-		foreach( $this->autoLoadPath as $path ) {
+		foreach( $this->namespace as $path ) {
 			$file = $path . $fileName;
 			if( is_file($file) ) {
 				include $file;
@@ -110,6 +110,43 @@ class mPHP {
 				$view->data['title'] = '访问错误！';
 				$view->data['msg'] = "未定义操作 $className";
 				$view->loadTpl('error');
+			}
+		}
+	}
+
+	/*
+	swoole拓展会导致php原生函数header失效
+	*/
+	public static function header($key,$value) {
+		if( HttpServer::$swoole_response ) {
+			HttpServer::$swoole_response->header($key,$value);
+		} else {
+			header($key . ': ' . $value );
+		}
+	}
+
+	public static function status($http_status_code) {
+		if( HttpServer::$swoole_response ) {
+			HttpServer::$swoole_response->status($http_status_code);
+		} else {
+			switch ($http_status_code) {
+				case 301:
+					header('HTTP/1.1 301 Moved Permanently');
+					break;
+				case 403:
+					header('HTTP/1.1 403 Forbidden');
+					break;
+				case 404:
+					header('HTTP/1.1 404 Not Found');
+					break;
+				case 500:
+					header('HTTP/1.1 500 Internal Server Error');
+					break;
+				case 503:
+					header('HTTP/1.1 503 Service Temporarily Unavailable');
+					header('Status: 503 Service Temporarily Unavailable');
+					header('Retry-After: 3600');
+					break;
 			}
 		}
 	}
@@ -190,22 +227,19 @@ class router {
 
 	public static function init() {
 		$path_info = self::path_info();
-		$path_info = preg_replace('#^/\w+\.php#', '', $path_info);
-mlog($path_info);
-		if( !empty($path_info) ) {
-			$splits = explode('/', trim($path_info, '/'));
-		} else {
-			return false;
-		}
+		$path_info = preg_replace('#^/\w+\.php#', '/', $path_info);
+		if( !empty($path_info) ) $splits = explode('/', trim($path_info, '/'));
+		else return false;
 
 		if( empty($_GET['c']) ) $_GET['c'] = empty($splits[0]) ? self::$controller : $splits[0];
 		if( empty($_GET['a']) ) $_GET['a'] = empty($splits[1]) ? self::$action : $splits[1];
 
 		$count = count($splits);
 		for($i = 2; $i < $count; $i += 2) {
-			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]]=$splits[$i+1];
+			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
 		}
-		if( is_array($_GET)) $_REQUEST = array_merge($_GET, $_REQUEST);
+		//mlog($_REQUEST);
+	//	if( is_array($_GET)) $_REQUEST = array_merge($_GET, $_REQUEST);
 	}
 
 	public static function path_info() {
@@ -222,12 +256,12 @@ mlog($path_info);
 					foreach ($config[$first_param] as $v) {
 						$count = 0; //记录成功替换的个数
 						$path_info = preg_replace($v[0],$v[1],$path_info,-1,$count);
-						if($count > 0) break; //只要匹配上一个，则停止匹配，故在router.config.php从上到下有优先权。
+						if($count > 0) break; //只要匹配上一个，则停止匹配，故在$CFG['router']从上到下有优先权。
 					}
 				}
 			}
-			$html_url_subffix = $CFG['url_suffix'];
-			if( $html_url_subffix && TRUE == ($url_suffix_pos = strrpos($path_info, $html_url_subffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
+			$url_suffix = !empty($CFG['url_suffix']) ? $CFG['url_suffix'] : false;
+			if( $url_suffix && $url_suffix != '/' && ($url_suffix_pos = strrpos($path_info, $url_suffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
 			if( $CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
 			unset($CFG);
 		}
@@ -374,8 +408,8 @@ class view {
 			if( ($strDir = dirname($arrData['file']) ) && !is_dir($strDir) ) mkdir($strDir,0775,true);
 			file_put_contents($arrData['file'],$arrData['html']);
 			$createTime = filemtime($arrData['file']) ;
-			header("Cache-Control: max-age=0");
-			header("Last-Modified: " . date("D, d M Y H:i:s",$createTime) );
+			mPHP::header('Cache-Control','max-age=0');
+			mPHP::header('Last-Modified',date("D, d M Y H:i:s",$createTime));
 		}
 		echo $arrData['html'];
 	}
@@ -557,13 +591,14 @@ class view {
 		if( ($createTime + $cacheTime >= $time ) && !$CFG['debug'] ) {
 			unset($CFG);
 			$createTime = date("D, d M Y H:i:s",$createTime);
-			header("Cache-Control: max-age=0");
-			header("Last-Modified: " . $createTime );
+			mPHP::header('Cache-Control','max-age=0');
+			mPHP::header('Last-Modified',$createTime);
 			if( isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $createTime ) {
-				header('HTTP/1.1 304 Not Modified'); 
+				mPHP::status(304);
 			} else {
 				include $file;
 			}
+			_exit();
 			return true;
 		} else {
 			unset($CFG);

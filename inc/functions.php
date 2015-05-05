@@ -488,12 +488,14 @@ function goto_503() {
 //404，页面没找到
 function goto_404() {
 	global $CFG;
-	header('HTTP/1.1 404 Not Found');
+	mPHP::status(404);
 	$view = new view();
-	//$file = CACHE_PATH . 'html/404.html';
 	$file = INDEX_PATH . '404.html';
-	$cache = $view->cache($file,$CFG['html_cache_time']);
-	if( $cache ) {
+	$cacheTime = $CFG['html_cache_time'];
+	$createTime = file_exists($file) ? filemtime($file) : 0;
+	$time = $_SERVER['REQUEST_TIME'];
+	if( ($createTime + $cacheTime >= $time ) && !$CFG['debug'] ) {
+		include $file;
 		_exit();
 		return true;
 	}
