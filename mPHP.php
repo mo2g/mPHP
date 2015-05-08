@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 创建时间:2012-03-01
-最后更新时间: 2015-05-02
+最后更新时间: 2015-05-06
 */
 if( !defined('INIT_MPHP') ) exit;
 
@@ -13,13 +13,14 @@ include MPHP_PATH.'inc/plus.php';//加载常用函数集
 //核心类
 class mPHP {
 	private static $mPHP = false;
+	public static $swoole = false;
 	
 	public $namespace = array();
 	public $controller;
 
 	private function __construct() {
 		$this->controller = new controller();
-		spl_autoload_register('self::autoload');
+		spl_autoload_register('autoload');
 	}
 	
 	public function run() {
@@ -46,88 +47,19 @@ class mPHP {
 	}
 
 	/*
-	功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
-	*/
-	public static function autoload($className) {
-		static $view = false;
-		static $flag = false;
-
-		if( $view === false ) $view =new view();
-		if( $flag === false ) $flag = $GLOBALS['CFG']['404'];
-		
-		if( substr($className,-10) == 'Controller' ) {
-			if( is_file(CONTROLLERS_PATH."{$className}.php") ) include CONTROLLERS_PATH."{$className}.php";
-			else {
-				if( $flag ) {
-					goto_404();
-				} else {
-					$view->data['title'] = '控制器不存在！';
-					$view->data['msg'] = "{$className}.php 不存在!";
-					$view->loadTpl('error');
-				}
-			}
-		} elseif( substr($className,-5) == 'Model' ) {
-			if( is_file(MODELS_MPHP."{$className}.php") )		include MODELS_MPHP."{$className}.php";
-			elseif( is_file(MODELS_MPHP."system/{$className}.php") )	include MODELS_MPHP."system/{$className}.php";
-			elseif( is_file(MODELS_PATH."{$className}.php") )	include MODELS_PATH."{$className}.php";
-			else {
-				if( $flag ) {
-					goto_404();
-				} else {
-					$view->data['title'] = 'Model模块不存在！';
-					$view->data['msg'] = "{$className}.php 不存在!";
-					$view->loadTpl('error');
-				}
-			}
-		} elseif(substr($className,-7) == 'Service') {
-			if( is_file(SERVICES_MPHP."{$className}.php") )		include SERVICES_MPHP."{$className}.php";
-			elseif( is_file(SERVICES_PATH."{$className}.php") )	include SERVICES_PATH."{$className}.php";
-			else {
-				if( $flag ) {
-					goto_404();
-				} else {
-					$view->data['title'] = 'service模块不存在！';
-					$view->data['msg'] = "{$className}.php 不存在!";
-					$view->loadTpl('error');
-				}
-			}
-		} elseif(substr($className,-3) == 'Dao') {
-			if( is_file(DAOS_MPHP."{$className}.php") )		include DAOS_MPHP."{$className}.php";
-			elseif( is_file(DAOS_PATH."{$className}.php") )	include DAOS_PATH."{$className}.php";
-			else {
-				if( $flag ) {
-					goto_404();
-				} else {
-					$view->data['title'] = 'dao模块不存在！';
-					$view->data['msg'] = "{$className}.php 不存在!";
-					$view->loadTpl('error');
-				}
-			}
-		} else {
-			if( $flag ) {
-				goto_404();
-			} else {
-				$view->data['title'] = '访问错误！';
-				$view->data['msg'] = "未定义操作 $className";
-				$view->loadTpl('error');
-			}
-		}
-	}
-
-	/*
 	swoole拓展会导致php原生函数header失效
 	*/
 	public static function header($key,$value) {
-		if( HttpServer::$swoole_response ) {
-			HttpServer::$swoole_response->header($key,$value);
+		if( mPHP::$swoole ) {
+			mPHP::$swoole['response']->header($key,$value);
 		} else {
 			header($key . ': ' . $value );
 		}
 	}
 
 	public static function status($http_status_code) {
-		if( HttpServer::$swoole_response ) {
-			HttpServer::$swoole_response->status($http_status_code);
+		if( mPHP::$swoole ) {
+			mPHP::$swoole['response']->status($http_status_code);
 		} else {
 			switch ($http_status_code) {
 				case 301:
@@ -238,8 +170,8 @@ class router {
 		for($i = 2; $i < $count; $i += 2) {
 			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
 		}
-		//mlog($_REQUEST);
-	//	if( is_array($_GET)) $_REQUEST = array_merge($_GET, $_REQUEST);
+
+		$_REQUEST = array_merge($_GET, $_REQUEST);
 	}
 
 	public static function path_info() {
@@ -448,99 +380,11 @@ class view {
 				$arrMergerJs[] = $row;
 			}
 		}
-		$css = $this->file_merger($arrMergerCss,crc32(implode($arrMergerCss,'')).'.css');
-		$js = $this->file_merger($arrMergerJs,crc32(implode($arrMergerJs,'')).'.js');
+		$css = file_merger($arrMergerCss,crc32(implode($arrMergerCss,'')).'.css');
+		$js = file_merger($arrMergerJs,crc32(implode($arrMergerJs,'')).'.js');
 		$str = strtr( $str,array('<link />'=>$css) );
 		$str = strtr( $str,array('<script></script>'=>$js) );
 		return $str;
-	}
-	
-	public function file_merger($arrFile,$out,$cache=false) {
-		global $CFG;
-		$url = STATIC_URL;
-		$return = "{$url}merger/{$out}";
-		$dir = STATIC_PATH. 'merger/';
-		$out = "{$dir}{$out}";
-		
-		if( substr($arrFile[0],-2) == 'js' ) {
-			 $type = 'js';
-		} elseif( substr($arrFile[0],-3) == 'css' ) {
-			$type = 'css';
-			//2014-2-28
-			//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
-			$CFG['java'] = 0;
-		}
-		
-		if( file_exists($out) ) {
-			//判断是否有文件被修改
-			$flag = 0;//0:没有文件被修改;1:有文件被修改
-			foreach($arrFile as $file) {
-				if( filemtime($out) != filemtime(INDEX_PATH.$file) ) {
-					$flag = 1;
-					break;
-				}
-			}
-		} else {
-			$flag = 1;
-		}
-		
-		//当文件不存在,或者子文件被修改,就执行下边的程序
-		if( $flag || $CFG['debug']) {
-			//调试模式,按常规加载js,css
-			if( $CFG['debug'] ) {
-				$out = '';
-				foreach($arrFile as $key => $file) {
-					if( $type == 'js' ) {
-						$out .= "<script src=\"{$file}\" type=\"text/javascript\"></script>\n";
-					} elseif( $type == 'css' ) {
-						$out .= "<link href=\"{$file}\" rel=\"stylesheet\" type=\"text/css\">\n";
-					}
-				}
-				return $out;
-			} else {
-			//正式环境启动压缩
-				ob_start();
-				foreach($arrFile as $key => $file) {
-					include INDEX_PATH.$file;
-				}
-				$str = ob_get_clean();
-				
-				$tmp = $dir. 'tmp';
-				
-				if($CFG['java']) {
-				//java程序精简文件
-					file_put_contents($tmp,$str);
-					if( $type == 'js' ) {
-						$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.2.jar --type js --charset utf-8 -v $tmp > $out";//压缩JS
-					} elseif( $type == 'css' ) {
-						 $exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.2.jar --type css --charset utf-8 -v $tmp > $out";//压缩CSS
-					}
-					`$exec` ;
-				} else {
-				//php程序精简文件
-				//测试阶段
-					$str = preg_replace( '#/\*.+?\*/#s','', $str );//过滤注释 /* */
-					$str = preg_replace( '#(?<!http:)(?<!\\\\)(?<!\')(?<!")//(?<!\')(?<!").*\n#','', $str );//过滤注释 //
-					$str = preg_replace( '#[\n\r\t]+#',' ', $str );//回车 tab替换成空格
-					$str = preg_replace( '#\s{2,}#',' ', $str );//两个以上空格合并为一个
-					file_put_contents($out,$str);
-				}
-				$time = filemtime($out);
-				foreach($arrFile as $file) {
-					touch(INDEX_PATH.$file,$time);
-				}
-			}
-		}
-		
-		//2014-2-28
-		//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
-		if( $type == 'css' ) {
-			$CFG['java'] = 1;
-		}
-		
-		unset($CFG);
-		if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}\"></script>\n";
-		elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}\">\n";
 	}
 	
 	/*转换所有include语句
@@ -614,13 +458,11 @@ class view {
 }
 
 class safe {
-	public $string;
-	public $strKey;
+	public static $magic_quotes_gpc;
 	
 	public function __construct() {
-		if( !isset($_SESSION) )session_start();
-		
-		$this->strKey = '';
+		if( !isset($_SESSION) ) session_start();
+		if( !self::$magic_quotes_gpc ) self::$magic_quotes_gpc = get_magic_quotes_gpc();
 	}
 	
 	//简单的过滤，防止get post cookie注入
@@ -634,7 +476,7 @@ class safe {
 		if( is_array($value) ) {
 			foreach( $value as &$row) self::filter($row);
 		} else {
-			if( get_magic_quotes_gpc() ) {
+			if( self::$magic_quotes_gpc ) {
 				$value = htmlspecialchars(trim($value), ENT_QUOTES);
 			} else {
 				$value = addslashes(htmlspecialchars(trim($value), ENT_QUOTES));
@@ -644,7 +486,7 @@ class safe {
 	
 	//还原字符串
 	public static function restore($str) {
-		if(get_magic_quotes_gpc()) return htmlspecialchars_decode(stripcslashes($str));
+		if( self::$magic_quotes_gpc ) return htmlspecialchars_decode(stripcslashes($str));
 		else return htmlspecialchars_decode($str);
 	}
 	

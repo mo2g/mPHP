@@ -2,9 +2,78 @@
 /*
 作者:moyancheng
 最后更新时间:2013-05-17
-最后更新时间:2015-05-04
+最后更新时间:2015-05-06
 */
 if( !defined('INIT_MPHP') ) exit;
+
+/*
+功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
+*/
+function autoload($className) {
+	static $view = false;
+	static $flag = false;
+
+	if( $view === false ) $view =new view();
+	if( $flag === false ) $flag = $GLOBALS['CFG']['404'];
+	
+	if( substr($className,-10) == 'Controller' ) {
+		if( is_file(CONTROLLERS_PATH."{$className}.php") ) include CONTROLLERS_PATH."{$className}.php";
+		else {
+			if( $flag ) {
+				goto_404();
+			} else {
+				$view->data['title'] = '控制器不存在！';
+				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->loadTpl('error');
+			}
+		}
+	} elseif( substr($className,-5) == 'Model' ) {
+		if( is_file(MODELS_MPHP."{$className}.php") )		include MODELS_MPHP."{$className}.php";
+		elseif( is_file(MODELS_MPHP."system/{$className}.php") )	include MODELS_MPHP."system/{$className}.php";
+		elseif( is_file(MODELS_PATH."{$className}.php") )	include MODELS_PATH."{$className}.php";
+		else {
+			if( $flag ) {
+				goto_404();
+			} else {
+				$view->data['title'] = 'Model模块不存在！';
+				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->loadTpl('error');
+			}
+		}
+	} elseif(substr($className,-7) == 'Service') {
+		if( is_file(SERVICES_MPHP."{$className}.php") )		include SERVICES_MPHP."{$className}.php";
+		elseif( is_file(SERVICES_PATH."{$className}.php") )	include SERVICES_PATH."{$className}.php";
+		else {
+			if( $flag ) {
+				goto_404();
+			} else {
+				$view->data['title'] = 'service模块不存在！';
+				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->loadTpl('error');
+			}
+		}
+	} elseif(substr($className,-3) == 'Dao') {
+		if( is_file(DAOS_MPHP."{$className}.php") )		include DAOS_MPHP."{$className}.php";
+		elseif( is_file(DAOS_PATH."{$className}.php") )	include DAOS_PATH."{$className}.php";
+		else {
+			if( $flag ) {
+				goto_404();
+			} else {
+				$view->data['title'] = 'dao模块不存在！';
+				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->loadTpl('error');
+			}
+		}
+	} else {
+		if( $flag ) {
+			goto_404();
+		} else {
+			$view->data['title'] = '访问错误！';
+			$view->data['msg'] = "未定义操作 $className";
+			$view->loadTpl('error');
+		}
+	}
+}
 
 //显示某时刻运行详情
 //使用示例:
@@ -357,45 +426,43 @@ $cache:是否缓存，默认为false,会输出mo2g.js?1389424132
 */
 function file_merger($arrFile,$out,$cache=false) {
 	global $CFG;
-	
-	//$url =  $_GET['c'] == 'blog' ? BLOG_URL : INDEX_URL;
-	$time = $_SERVER['REQUEST_TIME'];
 	$url = STATIC_URL;
 	$return = "{$url}merger/{$out}";
 	$dir = STATIC_PATH. 'merger/';
 	$out = "{$dir}{$out}";
 	
-	if( substr($arrFile[0],-2) == 'js' || (isset($arrFile['mPHP']) && substr($arrFile['mPHP'][0],-2) == 'js') ) {
+	if( substr($arrFile[0],-2) == 'js' ) {
 		 $type = 'js';
-	} elseif( substr($arrFile[0],-3) == 'css' || (isset($arrFile['mPHP']) && substr($arrFile['mPHP'][0],-3) == 'css') ) {
+	} elseif( substr($arrFile[0],-3) == 'css' ) {
 		$type = 'css';
 		//2014-2-28
 		//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
 		$CFG['java'] = 0;
 	}
 	
-	//当文件不存在,或者调试模式,就执行下边的程序
-	if( !is_file($out) || $CFG['debug']) {
+	if( file_exists($out) ) {
+		//判断是否有文件被修改
+		$flag = 0;//0:没有文件被修改;1:有文件被修改
+		foreach($arrFile as $file) {
+			if( filemtime($out) != filemtime(INDEX_PATH.$file) ) {
+				$flag = 1;
+				break;
+			}
+		}
+	} else {
+		$flag = 1;
+	}
+	
+	//当文件不存在,或者子文件被修改,就执行下边的程序
+	if( $flag || $CFG['debug']) {
 		//调试模式,按常规加载js,css
 		if( $CFG['debug'] ) {
 			$out = '';
 			foreach($arrFile as $key => $file) {
-				//mPHP自带js或css
-				if($key === 'mPHP') {
-					$url = MPHP_URL;
-					foreach($file as $adminfile) {
-						if( $type == 'js' ) {
-							$out .= "<script type=\"text/javascript\" src=\"{$url}static/js/{$adminfile}?{$time}\"></script>\n";
-						} elseif( $type == 'css' ) {
-							$out .= "<link href=\"{$url}static/css/{$adminfile}?{$time}\" rel=\"stylesheet\" type=\"text/css\">\n";
-						}
-					}
-				} else {
-					if( $type == 'js' ) {
-						$out .= "<script type=\"text/javascript\" src=\"{$url}js/{$file}?{$time}\"></script>\n";
-					} elseif( $type == 'css' ) {
-						$out .= "<link href=\"{$url}css/{$file}?{$time}\" rel=\"stylesheet\" type=\"text/css\">\n";
-					}
+				if( $type == 'js' ) {
+					$out .= "<script src=\"{$file}\" type=\"text/javascript\"></script>\n";
+				} elseif( $type == 'css' ) {
+					$out .= "<link href=\"{$file}\" rel=\"stylesheet\" type=\"text/css\">\n";
 				}
 			}
 			return $out;
@@ -403,13 +470,9 @@ function file_merger($arrFile,$out,$cache=false) {
 		//正式环境启动压缩
 			ob_start();
 			foreach($arrFile as $key => $file) {
-				if($key === 'mPHP') {
-					foreach($file as $adminfile) include STATIC_MPHP."{$type}/{$adminfile}";
-				} else {
-					include STATIC_PATH."{$type}/{$file}";
-				}
+				include INDEX_PATH.$file;
 			}
-			$str =  ob_get_clean();
+			$str = ob_get_clean();
 			
 			$tmp = $dir. 'tmp';
 			
@@ -431,7 +494,10 @@ function file_merger($arrFile,$out,$cache=false) {
 				$str = preg_replace( '#\s{2,}#',' ', $str );//两个以上空格合并为一个
 				file_put_contents($out,$str);
 			}
-			
+			$time = filemtime($out);
+			foreach($arrFile as $file) {
+				touch(INDEX_PATH.$file,$time);
+			}
 		}
 	}
 	
@@ -440,16 +506,10 @@ function file_merger($arrFile,$out,$cache=false) {
 	if( $type == 'css' ) {
 		$CFG['java'] = 1;
 	}
-				
-	unset($CFG);
-	if( $cache ) {
-		if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}\"></script>\n";
-		elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}\">\n";
-	} else {
-		if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}?{$time}\"></script>\n";
-		elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}?{$time}\">\n";
-	}
 	
+	unset($CFG);
+	if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}\"></script>\n";
+	elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}\">\n";
 }
 
 //精简html : 清除换行符,清除制表符,去掉注释标记
@@ -499,31 +559,9 @@ function goto_404() {
 		_exit();
 		return true;
 	}
-	$is_moblie = is_mobile();
+	$is_mobile = is_mobile();
 	
-	$arrCss = array(
-		'core.css',
-		'forms.css',
-		'style.css',
-		'custom.css',
-		'components.css',
-	);
-	$arrJs = array(
-		'jquery.dm3ResponsiveSlider.js',
-		'jquery.dm3Tabs.js',
-		'jquery.dm3Gallery.js',
-		'jquery.dm3Carousel.js',
-		'custom.js',
-		'jquery_autoscroll.js',
-	);
-	
-	//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
 	global $CFG;
-	if( $is_mobile ) $CFG['java'] = 0;
-	$css = file_merger($arrCss,'mo2g.css');
-	$CFG['java'] = 1;
-	$js = file_merger($arrJs,'mo2g.js');
-	
 	$blogService = new blogService();
 	$arrBlogType = $blogService->getTypeByBlog();
 	$arrTypeAll = $blogService->getTypeAll();
@@ -541,8 +579,6 @@ function goto_404() {
 	$view->data['type_all'] = $arrTypeAll;
 	$view->data['blog_nav'] = $arrBlogNav;
 	$view->data['tags'] = $arrTags;
-	$view->data['css'] = $css;
-	$view->data['script'] = $js;
 	$view->data['title'] = '404';
 	if( $is_mobile ) {
 		if($CFG['404']) $view->loadTpl('mobile_404',$file);
@@ -573,8 +609,8 @@ function goto_403() {
 
 //301，页面重定向
 function goto_301($url) {
-	header('HTTP/1.1 301 Moved Permanently');
-	header("Location: {$url}");
+	mPHP::status(301);
+	mPHP::header('Location',$url);
 	_exit();
 }
 
