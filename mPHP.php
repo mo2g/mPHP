@@ -325,10 +325,10 @@ class view {
 		ob_end_clean();
 		
 		global $CFG;
-		if(!$CFG['debug']) {
-			$arrData['html'] = mini_html( $this->merger($arrData['html']) );
-		} else {
+		if($CFG['debug']) {
 			$arrData['html'] = $this->merger($arrData['html']);
+		} else {
+			$arrData['html'] = mini_html( $this->merger($arrData['html']) );
 		}
 		unset($CFG);
 		
