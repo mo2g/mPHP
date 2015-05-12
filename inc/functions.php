@@ -434,7 +434,7 @@ function file_merger($arrFile,$out,$cache=false) {
 		$type = 'css';
 		//2014-2-28
 		//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
-		$GLOBALS['CFG']['java'] = 0;
+		//$GLOBALS['CFG']['java'] = 0;
 	}
 
 	//调试模式,按常规加载js,css
@@ -481,7 +481,8 @@ function file_merger($arrFile,$out,$cache=false) {
 			if( $type == 'js' ) {
 				$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type js --charset utf-8 $tmp -o $out";//压缩JS
 			} elseif( $type == 'css' ) {
-				 $exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
+				 //$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
+				$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 $tmp -o $out";//压缩CSS
 			}
 			`$exec` ;
 		} else {
@@ -502,7 +503,7 @@ function file_merger($arrFile,$out,$cache=false) {
 	//2014-2-28
 	//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
 	if( $type == 'css' ) {
-		$GLOBALS['CFG']['java'] = 1;
+		//$GLOBALS['CFG']['java'] = 1;
 	}
 	
 	if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}\"></script>\n";

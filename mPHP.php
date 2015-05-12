@@ -65,6 +65,9 @@ class mPHP {
 				case 301:
 					header('HTTP/1.1 301 Moved Permanently');
 					break;
+				case 304:
+					header('HTTP/1.1 304 Not Modified');
+					break;
 				case 403:
 					header('HTTP/1.1 403 Forbidden');
 					break;
