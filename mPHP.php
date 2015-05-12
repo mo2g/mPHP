@@ -94,7 +94,6 @@ class mPHP {
 	}
 	
 	public static function initMainDir() {
-		global $CFG;
 		if(!is_dir(CACHE_PATH)) {
 			mkdir(CACHE_PATH);
 			file_put_contents(CACHE_PATH.'index.html','');
@@ -136,18 +135,15 @@ class mPHP {
 			file_put_contents(STATIC_PATH.'index.html','');
 			file_put_contents(STATIC_PATH.'merger/index.html','');
 		}
-		foreach($CFG['main_dir'] as $dir) {
+		foreach($GLOBALS['CFG']['main_dir'] as $dir) {
 			createDirs($dir['path'],$dir['totle']);
 		}
-		unset($CFG);
 	}
 	
 	//初始化数据库
 	public static function initDb() {
-		global $CFG;
-		$db = new pdoModel($CFG['pdo']);
+		$db = new pdoModel($GLOBALS['CFG']['pdo']);
 		$db->initDb('initdata/tables.sql');
-		unset($CFG);
 		unset($db);
 	}
 }
@@ -215,9 +211,7 @@ class controller {
 	
 	public function __construct() {
 		if( !self::$CFG ) {
-			global $CFG;
-			self::$CFG = &$CFG;
-			unset($CFG);
+			self::$CFG = &$GLOBALS['CFG'];
 		}
 		if(!self::$view) self::$view = new view();
 		
@@ -281,11 +275,9 @@ class service {
 	public static $httpsqsModel = 0;
 	
 	public function __construct() {
-		global $CFG;
 		//if(!self::$mem) self::$mem = new memcachedModel($CFG['memcached']);
 		if(!self::$httpsqsModel) self::$httpsqsModel = M('httpsqs');
-		$CFG['mem'] = self::$mem;
-		unset($CFG);
+		$GLOBALS['CFG']['mem'] = self::$mem;
 	}
 }
 
@@ -295,10 +287,8 @@ class dao {
 	public static $table_prefix = 0;
 	
 	public function __construct() {
-		global $CFG;
-		if(!self::$db) self::$db = new pdoModel($CFG['pdo']);
-		if(!self::$table_prefix) self::$table_prefix = $CFG['table_prefix'];
-		unset($CFG);
+		if(!self::$db) self::$db = new pdoModel($GLOBALS['CFG']['pdo']);
+		if(!self::$table_prefix) self::$table_prefix = $GLOBALS['CFG']['table_prefix'];
 	}
 }
 
@@ -311,6 +301,10 @@ class dao {
 	替换<!--#标签为<?php
 */
 class view {
+	public $is_cache = false;
+	public $is_merger = false;
+	public $is_mini_html = false;
+
 	public function __construct() {
 	}
 	
@@ -324,36 +318,31 @@ class view {
 		$arrData = $this->_include($tpl,$file);
 		ob_end_clean();
 		
-		global $CFG;
-		if($CFG['debug']) {
-			$arrData['html'] = $this->merger($arrData['html']);
+		if($GLOBALS['CFG']['debug']) {
 		} else {
-			$arrData['html'] = mini_html( $this->merger($arrData['html']) );
+			if( $this->is_merger ) $arrData['html'] = $this->merger($arrData['html']);
+			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
 		}
-		unset($CFG);
-		
-		//管理员浏览页面不缓存
-		//游客浏览页面，创建网站地图，缓存
-		if( !isset($_SESSION['user']['admin']) || $_SESSION['user']['admin'] >= 9 || $_GET['c'] == 'adminCache' ) {
-			$date = date('Y-m-d H:i');
+		if( $this->is_cache ) {
+			$date = date('Y-m-d H:i:s');
 			$arrData['html'] .= "<!-- mPHP html cache $date -->";
-			if( ($strDir = dirname($arrData['file']) ) && !is_dir($strDir) ) mkdir($strDir,0775,true);
+			$strDir = dirname($arrData['file']);
+			if( !is_dir($strDir) ) mkdir($strDir,0775,true);
 			file_put_contents($arrData['file'],$arrData['html']);
 			$createTime = filemtime($arrData['file']) ;
 			mPHP::header('Cache-Control','max-age=0');
 			mPHP::header('Last-Modified',date("D, d M Y H:i:s",$createTime));
 		}
+		
 		echo $arrData['html'];
 	}
 	
 	//编译模版
 	public function tplCompile($str) {
-		global $CFG;
 		//处理include标签
 		$str = preg_replace( "/<!--#\s*layout\s*:\s*([^ ]+);*\s*#-->/", '<?php $this->_include(\'\\1\') ?>', $str );
 		/*替换<!--# #-->标签为<?php ?>*/
-		$str = strtr($str,array($CFG['template']['tag_left'] => '<?php ', $CFG['template']['tag_right'] => ' ?>'));
-		unset($CFG);
+		$str = strtr($str,array($GLOBALS['CFG']['template']['tag_left'] => '<?php ', $GLOBALS['CFG']['template']['tag_right'] => ' ?>'));
 		return $str;
 	}
 	
@@ -426,14 +415,13 @@ class view {
 	}
 	
 	public function cache($file,$cacheTime) {
-		global $CFG;
+		$this->is_cache = true;
 		$time = $_SERVER['REQUEST_TIME'];
 		if( isset($_SESSION['user']['admin']) && $_SESSION['user']['admin'] < 9 ) {
 			$cacheTime = 0;
 		}
 		$createTime = file_exists($file) ? filemtime($file) : 0;
-		if( ($createTime + $cacheTime >= $time ) && !$CFG['debug'] ) {
-			unset($CFG);
+		if( ($createTime + $cacheTime >= $time ) && !$GLOBALS['CFG']['debug'] ) {
 			$createTime = date("D, d M Y H:i:s",$createTime);
 			mPHP::header('Cache-Control','max-age=0');
 			mPHP::header('Last-Modified',$createTime);
@@ -444,8 +432,6 @@ class view {
 			}
 			_exit();
 			return true;
-		} else {
-			unset($CFG);
 		}
 		return false;
 	}

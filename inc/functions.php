@@ -189,10 +189,9 @@ article-view-1-1.html
 article/view/1/1.html
 */
 function U($strUrl = '',$true = true) {
-	global $CFG;
 	$arrGet = $arrVal =  $arrData =  array();
 	$intDepth = 0;
-	$intDepthMax = $CFG['url_depth'];
+	$intDepthMax = $GLOBALS['CFG']['url_depth'];
 	
 	if( $strUrl === '' ) return $_GET['c'] == 'blog' ? BLOG_URL : INDEX_URL;
 	
@@ -211,8 +210,8 @@ function U($strUrl = '',$true = true) {
 		$url = INDEX_URL;
 	}
 	
-	if($CFG['url_type'] == 'DIR') $flag = '/';
-	elseif($CFG['url_type'] == 'NODIR') $flag = '-';
+	if($GLOBALS['CFG']['url_type'] == 'DIR') $flag = '/';
+	elseif($GLOBALS['CFG']['url_type'] == 'NODIR') $flag = '-';
 	else {
 		if($strUrl[0] != '?') $strUrl = "{$url}?{$strUrl}";
 		return $strUrl;
@@ -235,8 +234,7 @@ function U($strUrl = '',$true = true) {
 	}
 	
 	$strUrl =  $url.trim($strUrl,'/-');
-	if($true)$strUrl .= $CFG['url_suffix'];
-	unset($CFG);
+	if($true)$strUrl .= $GLOBALS['CFG']['url_suffix'];
 	
 	return $strUrl;
 }
@@ -425,7 +423,6 @@ $out:输出文件
 $cache:是否缓存，默认为false,会输出mo2g.js?1389424132
 */
 function file_merger($arrFile,$out,$cache=false) {
-	global $CFG;
 	$url = STATIC_URL;
 	$return = "{$url}merger/{$out}";
 	$dir = STATIC_PATH. 'merger/';
@@ -437,11 +434,11 @@ function file_merger($arrFile,$out,$cache=false) {
 		$type = 'css';
 		//2014-2-28
 		//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
-		$CFG['java'] = 0;
+		$GLOBALS['CFG']['java'] = 0;
 	}
 
 	//调试模式,按常规加载js,css
-	if( $CFG['debug'] ) {
+	if( $GLOBALS['CFG']['debug'] ) {
 		$out = '';
 		foreach($arrFile as $key => $file) {
 			if( $type == 'js' ) {
@@ -477,7 +474,7 @@ function file_merger($arrFile,$out,$cache=false) {
 		
 		$tmp = $dir. 'tmp';
 		
-		if($CFG['java']) {
+		if($GLOBALS['CFG']['java']) {
 		//java程序精简文件
 			file_put_contents($tmp,$str);
 			//文档地址：http://yui.github.io/yuicompressor/
@@ -505,10 +502,9 @@ function file_merger($arrFile,$out,$cache=false) {
 	//2014-2-28
 	//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
 	if( $type == 'css' ) {
-		$CFG['java'] = 1;
+		$GLOBALS['CFG']['java'] = 1;
 	}
 	
-	unset($CFG);
 	if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}\"></script>\n";
 	elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}\">\n";
 }
@@ -533,12 +529,10 @@ function mini_html($html) {
 
 //网站维护期间使用，避免搜索引擎误判
 function goto_503() {
-	global $CFG;
 	mPHP::status(503);
 	$view = new view();
 	$file = CACHE_PATH . 'html/404.html';
-	$view->cache($file,$CFG['html_cache_time']);
-	unset($CFG);
+	$view->cache($file,$GLOBALS['CFG']['html_cache_time']);
 	$view->loadTpl('503');
 	_exit();
 	return true;
@@ -546,14 +540,13 @@ function goto_503() {
 
 //404，页面没找到
 function goto_404() {
-	global $CFG;
 	mPHP::status(404);
 	$view = new view();
 	$file = INDEX_PATH . '404.html';
-	$cacheTime = $CFG['html_cache_time'];
+	$cacheTime = $GLOBALS['CFG']['html_cache_time'];
 	$createTime = file_exists($file) ? filemtime($file) : 0;
 	$time = $_SERVER['REQUEST_TIME'];
-	if( ($createTime + $cacheTime >= $time ) && !$CFG['debug'] ) {
+	if( ($createTime + $cacheTime >= $time ) && !$GLOBALS['CFG']['debug'] ) {
 		include $file;
 		_exit();
 		return true;
@@ -579,29 +572,26 @@ function goto_404() {
 	$view->data['tags'] = $arrTags;
 	$view->data['title'] = '404';
 	if( $is_mobile ) {
-		if($CFG['404']) $view->loadTpl('mobile_404',$file);
+		if($GLOBALS['CFG']['404']) $view->loadTpl('mobile_404',$file);
 		else $view->loadTpl('admin/mobile_404',$file);
 	} else {
-		if($CFG['404']) $view->loadTpl('404',$file);
+		if($GLOBALS['CFG']['404']) $view->loadTpl('404',$file);
 		else $view->loadTpl('admin/404',$file);
 	}
-	unset($CFG);
 	_exit();
 }
 
 //403，页面没权限
 function goto_403() {
-	global $CFG;
 	mPHP::status(301);
 	$view = new view();
 	$file = CACHE_PATH . 'html/403.html';
-	$cache = $view->cache($file,$CFG['html_cache_time']);
+	$cache = $view->cache($file,$GLOBALS['CFG']['html_cache_time']);
 	if( $cache) {
 		_exit();
 		return true;
 	}
 	$view->loadTpl('403');
-	unset($CFG);
 	_exit();
 }
 
@@ -701,11 +691,10 @@ function rand_string($len = 6,$type = 0,$addChars = '') {
 //ThinkPHP end
 
 function msgDb() {
-	global $CFG;
-	$db = new pdoModel($CFG['pdo']);
+	$db = new pdoModel($GLOBALS['CFG']['pdo']);
 	$arrData = $arrTmp = array();
-	$table_index = "{$CFG['table_prefix']}message_index";
-	$table_content = "{$CFG['table_prefix']}message_content";
+	$table_index = "{$GLOBALS['CFG']['table_prefix']}message_index";
+	$table_content = "{$GLOBALS['CFG']['table_prefix']}message_content";
 	$strSql = "select a.*,b.reply b_reply
 	from $table_index a,$table_content b 
 	where a.id = b.id and b.reply != ''
