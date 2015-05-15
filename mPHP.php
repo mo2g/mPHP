@@ -159,6 +159,7 @@ class router {
 	public static function init() {
 		$path_info = self::path_info();
 		$path_info = preg_replace('#^/\w+\.php#', '/', $path_info);
+
 		if( !empty($path_info) ) $splits = explode('/', trim($path_info, '/'));
 		else return false;
 
@@ -169,7 +170,6 @@ class router {
 		for($i = 2; $i < $count; $i += 2) {
 			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
 		}
-
 		$_REQUEST = array_merge($_GET, $_REQUEST);
 	}
 
@@ -290,8 +290,17 @@ class dao {
 	public static $table_prefix = 0;
 	
 	public function __construct() {
-		if(!self::$db) self::$db = new pdoModel($GLOBALS['CFG']['pdo']);
+		if(!self::$db) self::$db = db::init();
 		if(!self::$table_prefix) self::$table_prefix = $GLOBALS['CFG']['table_prefix'];
+	}
+}
+
+class db {
+	public static $db = array();
+
+	public static function init($name = 'master') {
+		if( empty(self::$db[$name]) ) self::$db[$name] = new pdoModel($GLOBALS['CFG']['pdo']);
+		return self::$db[$name];
 	}
 }
 
