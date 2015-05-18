@@ -157,10 +157,11 @@ class router {
 	public static $action = 'index';
 
 	public static function init() {
+		$mark = ',';
 		$path_info = self::path_info();
-		$path_info = preg_replace('#^/\w+\.php#', '/', $path_info);
+		$path_info = preg_replace('#^/\w+\.php#', $mark, $path_info);
 
-		if( !empty($path_info) ) $splits = explode('/', trim($path_info, '/'));
+		if( !empty($path_info) ) $splits = explode($mark, trim($path_info, $mark));
 		else return false;
 
 		if( empty($_GET['c']) ) $_GET['c'] = empty($splits[0]) ? self::$controller : $splits[0];

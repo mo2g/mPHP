@@ -603,6 +603,13 @@ function goto_301($url) {
 	_exit();
 }
 
+//302，页面临时跳转
+function goto_302($url) {
+	mPHP::status(302);
+	mPHP::header('Location',$url);
+	_exit();
+}
+
 
 
 
@@ -781,7 +788,7 @@ function token() {
 }
 
 function mlog($log = '',$file = '') {
-	if( $file == '' ) $file = 'log.txt';
+	if( $file == '' ) $file = INDEX_PATH.'log.txt';
 	if( is_array( $log ) ) {
 		$str = '';
 		foreach( $log as $key =>  $row ) {
@@ -802,10 +809,14 @@ swoole中不允许试用exit，所以使用如下方式记录PHP是否执行过 
 没有执行返回：false
 */
 function _exit() {
-	if( defined('EXIT_MPHP') ) {
-		return true;
+	if( mPHP::$swoole ) {
+		if( defined('EXIT_MPHP') ) {
+			return true;
+		} else {
+			define('EXIT_MPHP' , 1);
+			return false;
+		}
 	} else {
-		define('EXIT_MPHP' , 1);
-		return false;
+		exit;
 	}
 }
