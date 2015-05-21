@@ -160,6 +160,7 @@ class router {
 		$mark = ',';
 		$path_info = self::path_info();
 		$path_info = preg_replace('#^/\w+\.php#', $mark, $path_info);
+		if($path_info == '/') $path_info = $mark;
 
 		if( !empty($path_info) ) $splits = explode($mark, trim($path_info, $mark));
 		else return false;
