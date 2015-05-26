@@ -363,13 +363,12 @@ class view {
 	//合并style、script
 	public function merger($str) {
 		$root = U();
-		$len = strlen($root);
 		$arrMergerCss = $arrMergerJs = array();
 		$script = "#<script.*src=['\"](/.+\.js)['\"].*></script>#";
 		$style	= "#<link.*href=['\"](/[^'\"]+\.css[^'\"]*)['\"].*>#";
-		$i = preg_match_all($style,$str,$arrStyle);
+		preg_match_all($style,$str,$arrStyle);
 		$str = preg_replace($style,'',$str);
-		$i = preg_match_all($script,$str,$arrScript);
+		preg_match_all($script,$str,$arrScript);
 		$str = preg_replace($script,'',$str);
 		foreach( $arrStyle[1] as &$row) {
 			if( $row[0] == '/' ) {
