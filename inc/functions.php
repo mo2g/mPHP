@@ -734,7 +734,7 @@ function msgDb() {
 //检测访问设备是否为手机，手机访问返回true，非手机则返回false
 function is_mobile() {
 	$is_mobile = false;
-	$user_agent = $_SERVER['HTTP_USER_AGENT'];
+	$user_agent = $_SERVER['HTTP_USER_AGENT'] ? $_SERVER['HTTP_USER_AGENT'] : $_SERVER['USER-AGENT'];
 	$mobile_agents = Array("240x320","acer","acoon","acs-","abacho","ahong","airness","alcatel",
 	"amoi","android","anywhereyougo.com","applewebkit/525","applewebkit/532","asus","audio","au-mic",
 	"avantogo","becker","benq","bilbo","bird","blackberry","blazer","bleu","cdm-","compal","coolpad",

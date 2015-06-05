@@ -228,7 +228,7 @@ class controller {
 		} elseif( isset($_COOKIE['www_mo2g_session_id']) ) {
 			$PHPSESSID = $_COOKIE['www_mo2g_session_id'];
 		}
-		if($PHPSESSID) session_id($PHPSESSID);
+		if(isset($PHPSESSID) ) session_id($PHPSESSID);
 		if( !isset($_SESSION) ) session_start();
 		
 		//if(!self::$visit) self::$visit = M('visit');
@@ -280,7 +280,7 @@ class service {
 	public static $httpsqsModel = 0;
 	
 	public function __construct() {
-		//if(!self::$mem) self::$mem = new memcachedModel($CFG['memcached']);
+		if(!self::$mem) self::$mem = new memcachedModel($CFG['memcached']);
 		if(!self::$httpsqsModel) self::$httpsqsModel = M('httpsqs');
 		$GLOBALS['CFG']['mem'] = self::$mem;
 	}
@@ -491,6 +491,7 @@ class safe {
 	
 	//随机生成验证码
 	public static function getKey() {
+		$strKey = '';
 		$string = 'abcdefghijklmnopqrstuvwxyz123567890';
 		$i = 5;
 		while($i) {
