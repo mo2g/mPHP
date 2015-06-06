@@ -280,7 +280,7 @@ class service {
 	public static $httpsqsModel = 0;
 	
 	public function __construct() {
-		if(!self::$mem) self::$mem = new memcachedModel($CFG['memcached']);
+		if(!self::$mem) self::$mem = new memcachedModel($GLOBALS['CFG']['memcached']);
 		if(!self::$httpsqsModel) self::$httpsqsModel = M('httpsqs');
 		$GLOBALS['CFG']['mem'] = self::$mem;
 	}

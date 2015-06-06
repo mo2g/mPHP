@@ -129,10 +129,10 @@ function C($path,$key = '',$value = '') {
 				return $arrConfig["$key"];
 			} elseif(strpos($key,'.')) {				//返回对应二维数组的参数
 				$arrKey = explode('.',$key);
-				if(isset($arrConfig["$arrKey[0]"]["$arrKey[1]"])) {
-					return $arrConfig["$arrKey[0]"]["$arrKey[1]"];
+				if(isset($arrConfig[$arrKey[0]][$arrKey[1]])) {
+					return $arrConfig[$arrKey[0]][$arrKey[1]];
 				} else {
-					echo "配置array['$arrKey[0]']['$arrKey[1]']不存在<br><br>";
+					return false;//echo "配置array[$arrKey[0]][$arrKey[1]]不存在<br><br>";
 				}
 			} else {
 				return false;//配置文件' . $file . ' 键值'. $key.'不存在<br>';
@@ -141,26 +141,16 @@ function C($path,$key = '',$value = '') {
 		//更新参数与配置文件，并返回该参数
 			if(strpos($key,'.')) {//更新二维数组的参数
 				$arrKey = explode('.',$key);
-				if(isset($arrConfig["$arrKey[0]"]["$arrKey[1]"])) {
-					$arrConfig["$arrKey[0]"]["$arrKey[1]"] = $value;
-					$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
-					file_put_contents($path,$config);
-					return $arrConfig["$arrKey[0]"]["$arrKey[1]"];
-				} else {
-					echo "配置array['$arrKey[0]']['$arrKey[1]']不存在<br><br>";
-				}
-			} else {			//更新对应键值的参数
-				if(isset($arrConfig["$key"])) {
-					$arrConfig["$key"] = $value;
-					$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
-					file_put_contents($path,$config);
-					return $arrConfig["$key"];
-				} else {
-					$arrConfig[] = $value;
-					$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
-					file_put_contents($path,$config);
-					return $arrConfig;
-				}
+				$arrConfig[$arrKey[0]][$arrKey[1]] = $value;
+				$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
+				file_put_contents($path,$config);
+				return $arrConfig[$arrKey[0]][$arrKey[1]];
+			} else {
+				//更新对应键值的参数
+				$arrConfig[$key] = $value;
+				$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
+				file_put_contents($path,$config);
+				return $arrConfig[$key];
 			}
 		}
 	} else {
@@ -432,9 +422,6 @@ function file_merger($arrFile,$out,$cache=false) {
 		 $type = 'js';
 	} elseif( substr($arrFile[0],-3) == 'css' ) {
 		$type = 'css';
-		//2014-2-28
-		//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
-		//$GLOBALS['CFG']['java'] = 0;
 	}
 
 	//调试模式,按常规加载js,css
@@ -452,11 +439,21 @@ function file_merger($arrFile,$out,$cache=false) {
 	
 	if( file_exists($out) ) {
 		//判断是否有文件被修改
+		$cacheFile = M('cacheFile');
+		if( $type == 'js' ) {
+			$cacheFile->in('js');
+		} else {
+			$cacheFile->in('css');
+		}
+		$arrTime = $cacheFile->get_all();
 		$flag = 0;//0:没有文件被修改;1:有文件被修改
 		foreach($arrFile as $file) {
-			if( filemtime($out) != filemtime(INDEX_PATH.$file) ) {
+			$key = strtr($file,'.',',');
+			$time = $arrTime[$key];//缓存的最后更新时间
+			$filemtime = filemtime(INDEX_PATH.$file);//当前文件最后更新时间
+			if( $time != $filemtime ) {
 				$flag = 1;
-				break;
+				$cacheFile->set($key,$filemtime);//更新缓存
 			}
 		}
 	} else {
@@ -493,10 +490,6 @@ function file_merger($arrFile,$out,$cache=false) {
 			$str = preg_replace( '#[\n\r\t]+#',' ', $str );//回车 tab替换成空格
 			$str = preg_replace( '#\s{2,}#',' ', $str );//两个以上空格合并为一个
 			file_put_contents($out,$str);
-		}
-		$time = filemtime($out);
-		foreach($arrFile as $file) {
-			touch(INDEX_PATH.$file,$time);
 		}
 	}
 	
