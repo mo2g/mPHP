@@ -803,10 +803,10 @@ swoole中不允许试用exit，所以使用如下方式记录PHP是否执行过 
 */
 function _exit() {
 	if( mPHP::$swoole ) {
-		if( defined('EXIT_MPHP') ) {
+		if( $GLOBALS['EXIT_MPHP'] ) {
 			return true;
 		} else {
-			define('EXIT_MPHP' , 1);
+			$GLOBALS['EXIT_MPHP'] = 1;
 			return false;
 		}
 	} else {
