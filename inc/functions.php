@@ -14,53 +14,58 @@ function autoload($className) {
 	static $flag = false;
 
 	if( $view === false ) $view =new view();
-	if( $flag === false ) $flag = $GLOBALS['CFG']['404'];
+	if( $flag === false ) $flag = !$GLOBALS['CFG']['debug'];
+
+	$file = strtr($className,array('\\' => '/')) . '.php';
 	
-	if( substr($className,-10) == 'Controller' ) {
-		if( is_file(CONTROLLERS_PATH."{$className}.php") ) include CONTROLLERS_PATH."{$className}.php";
+	if( substr($className,-14,10) == 'Controller' ) {
+		if( is_file(CONTROLLERS_PATH.$file) ) include CONTROLLERS_PATH.$file;
 		else {
 			if( $flag ) {
 				goto_404();
 			} else {
 				$view->data['title'] = '控制器不存在！';
-				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
 		}
-	} elseif( substr($className,-5) == 'Model' ) {
-		if( is_file(MODELS_MPHP."{$className}.php") )		include MODELS_MPHP."{$className}.php";
-		elseif( is_file(MODELS_MPHP."system/{$className}.php") )	include MODELS_MPHP."system/{$className}.php";
-		elseif( is_file(MODELS_PATH."{$className}.php") )	include MODELS_PATH."{$className}.php";
-		else {
+	} elseif( substr($className,-9,5) == 'Model' ) {
+		if( is_file(MODELS_MPHP.$file) ) {
+			include MODELS_MPHP.$file;
+		} elseif( is_file(MODELS_MPHP."system/{$file}") ) {
+			include MODELS_MPHP."system/{$file}";
+		} elseif( is_file(MODELS_PATH.$file) ) {
+			include MODELS_PATH.$file;
+		} else {
 			if( $flag ) {
 				goto_404();
 			} else {
 				$view->data['title'] = 'Model模块不存在！';
-				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
 		}
-	} elseif(substr($className,-7) == 'Service') {
-		if( is_file(SERVICES_MPHP."{$className}.php") )		include SERVICES_MPHP."{$className}.php";
-		elseif( is_file(SERVICES_PATH."{$className}.php") )	include SERVICES_PATH."{$className}.php";
-		else {
+	} elseif(substr($className,-11,7) == 'Service') {
+		if( is_file(SERVICES_PATH.$file) ) {
+			include SERVICES_PATH.$file;
+		} else {
 			if( $flag ) {
 				goto_404();
 			} else {
 				$view->data['title'] = 'service模块不存在！';
-				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
 		}
-	} elseif(substr($className,-3) == 'Dao') {
-		if( is_file(DAOS_MPHP."{$className}.php") )		include DAOS_MPHP."{$className}.php";
-		elseif( is_file(DAOS_PATH."{$className}.php") )	include DAOS_PATH."{$className}.php";
-		else {
+	} elseif(substr($className,-7,3) == 'Dao') {
+		if( is_file(DAOS_PATH.$file) ) {
+			include DAOS_PATH.$file;
+		} else {
 			if( $flag ) {
 				goto_404();
 			} else {
 				$view->data['title'] = 'dao模块不存在！';
-				$view->data['msg'] = "{$className}.php 不存在!";
+				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
 		}
