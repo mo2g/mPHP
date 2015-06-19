@@ -13,14 +13,15 @@ function autoload($className) {
 	static $view = false;
 	static $flag = false;
 
-	if( $view === false ) $view =new view();
+	if( $view === false ) $view = new view();
 	if( $flag === false ) $flag = !$GLOBALS['CFG']['debug'];
 
 	$file = strtr($className,array('\\' => '/')) . '.php';
 	
 	if( substr($className,-14,10) == 'Controller' ) {
-		if( is_file(CONTROLLERS_PATH.$file) ) include CONTROLLERS_PATH.$file;
-		else {
+		if( is_file(CONTROLLERS_PATH.$file) ) {
+			include CONTROLLERS_PATH.$file;
+		} else {
 			if( $flag ) {
 				goto_404();
 			} else {
