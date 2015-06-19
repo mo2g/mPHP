@@ -18,7 +18,7 @@ function autoload($className) {
 
 	$file = strtr($className,array('\\' => '/')) . '.php';
 	
-	if( substr($className,-14,10) == 'Controller' ) {
+	if( substr($file,-14) == 'Controller.php' ) {
 		if( is_file(CONTROLLERS_PATH.$file) ) {
 			include CONTROLLERS_PATH.$file;
 		} else {
@@ -30,7 +30,7 @@ function autoload($className) {
 				$view->loadTpl('error');
 			}
 		}
-	} elseif( substr($className,-9,5) == 'Model' ) {
+	} elseif( substr($file,-9) == 'Model.php' ) {
 		if( is_file(MODELS_MPHP.$file) ) {
 			include MODELS_MPHP.$file;
 		} elseif( is_file(MODELS_MPHP."system/{$file}") ) {
@@ -46,7 +46,7 @@ function autoload($className) {
 				$view->loadTpl('error');
 			}
 		}
-	} elseif(substr($className,-11,7) == 'Service') {
+	} elseif(substr($file,-11) == 'Service.php') {
 		if( is_file(SERVICES_PATH.$file) ) {
 			include SERVICES_PATH.$file;
 		} else {
@@ -58,7 +58,7 @@ function autoload($className) {
 				$view->loadTpl('error');
 			}
 		}
-	} elseif(substr($className,-7,3) == 'Dao') {
+	} elseif(substr($file,-7) == 'Dao.php') {
 		if( is_file(DAOS_PATH.$file) ) {
 			include DAOS_PATH.$file;
 		} else {
@@ -75,7 +75,7 @@ function autoload($className) {
 			goto_404();
 		} else {
 			$view->data['title'] = '访问错误！';
-			$view->data['msg'] = "未定义操作 $className";
+			$view->data['msg'] = "未定义操作 $file";
 			$view->loadTpl('error');
 		}
 	}
