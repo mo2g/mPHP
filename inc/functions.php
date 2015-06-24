@@ -30,22 +30,6 @@ function autoload($className) {
 				$view->loadTpl('error');
 			}
 		}
-	} elseif( substr($file,-9) == 'Model.php' ) {
-		if( is_file(MODELS_MPHP.$file) ) {
-			include MODELS_MPHP.$file;
-		} elseif( is_file(MODELS_MPHP."system/{$file}") ) {
-			include MODELS_MPHP."system/{$file}";
-		} elseif( is_file(MODELS_PATH.$file) ) {
-			include MODELS_PATH.$file;
-		} else {
-			if( $flag ) {
-				goto_404();
-			} else {
-				$view->data['title'] = 'Model模块不存在！';
-				$view->data['msg'] = "{$file} 不存在!";
-				$view->loadTpl('error');
-			}
-		}
 	} elseif(substr($file,-11) == 'Service.php') {
 		if( is_file(SERVICES_PATH.$file) ) {
 			include SERVICES_PATH.$file;
@@ -66,6 +50,20 @@ function autoload($className) {
 				goto_404();
 			} else {
 				$view->data['title'] = 'dao模块不存在！';
+				$view->data['msg'] = "{$file} 不存在!";
+				$view->loadTpl('error');
+			}
+		}
+	} elseif( substr($file,-9) == 'Model.php' ) {
+		if( is_file(MODELS_MPHP.$file) ) {
+			include MODELS_MPHP.$file;
+		} elseif( is_file(MODELS_PATH.$file) ) {
+			include MODELS_PATH.$file;
+		} else {
+			if( $flag ) {
+				goto_404();
+			} else {
+				$view->data['title'] = 'Model模块不存在！';
 				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
@@ -306,11 +304,8 @@ function clearDir($dir,$true = false) {
 在指定路径$path下创建0~$max个目录
 */
 function createDirs($path,$max) {
-	createDir($path);
-	$i = 0;
-	while($i < $max) {
-		if( !is_dir($path.$i) ) mkdir($path.$i);
-		++$i;
+	for( $i = 0; $i < $max; ++$i) {
+		if( !is_dir($path.$i) ) mkdir($path.$i,0755,true);
 	}
 }
 /*
@@ -657,7 +652,7 @@ function msubstr($str, $start=0, $length, $charset="utf-8", $suffix=true) {
  * @return string
  +----------------------------------------------------------
  */
-function rand_string($len = 6,$type = 0,$addChars = '') {
+function rand_string($len = 6,$type = 5,$addChars = '') {
     $str ='';
     switch($type) {
         case 0:
@@ -788,18 +783,9 @@ function token() {
 
 function mlog($log = '',$file = '') {
 	if( $file == '' ) $file = INDEX_PATH.'log.txt';
-	if( is_array( $log ) ) {
-		$str = '';
-		foreach( $log as $key =>  $row ) {
-			$str .= "$key = $row\n";
-		}
-		$log = $str;
-	}
-	$fp = fopen($file,"a");
-	flock($fp, LOCK_EX) ;
-	fwrite($fp,"执行日期：".strftime("%Y-%m-%d %H:%M:%S",time())."\n".$log."\n");
-	flock($fp, LOCK_UN);
-	fclose($fp);
+	$log = print_r($log,true);
+	$log = "date：" . date("Y-m-d H:i:s") . "\n{$log}\n";
+	file_put_contents($file,$log,FILE_APPEND|LOCK_EX);
 }
 
 /*
