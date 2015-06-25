@@ -57,9 +57,9 @@ class strModel {
 	 +----------------------------------------------------------
 	 */
 	public static function msubstr($str, $start=0, $length, $charset="utf-8", $suffix=true) {
-		if(public static function_exists("mb_substr")) {
+		if(function_exists("mb_substr")) {
 			return mb_substr($str, $start, $length, $charset);
-		} elseif(public static function_exists('iconv_substr')) {
+		} elseif(function_exists('iconv_substr')) {
 			return iconv_substr($str,$start,$length,$charset);
 		}
 		$re['utf-8']   = "/[\x01-\x7f]|[\xc2-\xdf][\x80-\xbf]|[\xe0-\xef][\x80-\xbf]{2}|[\xf0-\xff][\x80-\xbf]{3}/";
