@@ -139,7 +139,7 @@ class mPHP {
 			file_put_contents(STATIC_PATH.'merger/index.html','');
 		}
 		foreach($GLOBALS['CFG']['main_dir'] as $dir) {
-			createDirs($dir['path'],$dir['totle']);
+			directoryModel::createDirs($dir['path'],$dir['totle']);
 		}
 	}
 	
@@ -451,7 +451,7 @@ class view {
 	
 	//清除所有静态Html
 	public static function clearCache() {
-		clearDir(CACHE_PATH);
+		directoryModel::clearDir(CACHE_PATH);
 	}
 	
 }

@@ -9,7 +9,7 @@
 class directoryModel {
 	
 	//获取当前路径下的所有文件、文件夹
-	public function view($path) {
+	public static function view($path) {
 		return glob($path);
 	}
 	
@@ -17,7 +17,7 @@ class directoryModel {
 	功能：在指定路径下查找文件或目录，找到后立即返回该路径
 	当$ture为真时，寻找目录
 	*/
-	public function find($target,$path,$true = false) {
+	public static function find($target,$path,$true = false) {
 		static $file_path = 0;
 		$arrInfo = glob($path . '/*');
 		foreach( $arrInfo as $file) {
@@ -41,11 +41,11 @@ class directoryModel {
 	/*
 	功能：清空指定文件夹内的所有文件，文件夹保留
 	*/
-	public function clearDir2($path) {
+	public static function clearDir2($path) {
 		if($handle = opendir($path)) {
 			while(false !== ($file = readdir($handle) ) ) {
 				if($file != '.' && $file != '..') {
-					is_dir($path.$file) ? clearDir($path.$file.'/') : unlink($path.$file);
+					is_dir($path.$file) ? self::clearDir2($path.$file.'/') : unlink($path.$file);
 				}
 			}
 			closedir($handle);
@@ -56,30 +56,27 @@ class directoryModel {
 	$dir:
 	$ture:当为true时,同时删除目录
 	*/
-	public function clearDir($dir,$true = false) {
+	public static function clearDir($dir,$true = false) {
 		$arrInfo = glob($path . '/*');
 		foreach( $arrInfo as $file) {
-			is_dir($file) ? clearDir($file,$true) : unlink($file);
+			is_dir($file) ? self::clearDir($file,$true) : unlink($file);
 		}
-		if($true)rmdir($dir);
+		if($true) rmdir($dir);
 	}
 	
 	/*
 	在指定路径$path下创建0~$max个目录
 	*/
-	public function createDirs($path,$max) {
-		createDir($path);
-		$i = 0;
-		while($i < $max) {
-			if( !is_dir($path.$i) ) mkdir($path.$i);
-			++$i;
+	public static function createDirs($path,$max) {
+		for( $i = 0; $i < $max; ++$i) {
+			if( !is_dir($path.$i) ) mkdir($path.$i,0755,true);
 		}
 	}
 	/*
 	在指定路径$path下创建0~$max个目录
 	*/
 	/*
-	public function createDir($path,$max) {
+	public static function createDir($path,$max) {
 		if(is_dir($path)) {
 			$i = 0;
 			while($i < $max) {
@@ -104,19 +101,19 @@ class directoryModel {
 	
 	暂时弃用,发现mkdir($path,true)有递归功能
 	*/
-	public function createDir($path) {
+	public static function createDir($path) {
 		$dir = dirname($path);
 		if( is_dir($dir) ) {
 			if( !is_dir($path) ) mkdir($path);
 		} else {
-			createDir($dir);
-			createDir($path);
+			self::createDir($dir);
+			self::createDir($path);
 		}
 		return true;
 	}
 	
 	//创建缓存目录
-	public function dirCache() {
+	public static function dirCache() {
 		if($arrDir = C('cache','html_cache_dir')) {
 			if(is_dir(CACHE_PATH.'html')) {
 				foreach($arrDir as $key => $value) {
