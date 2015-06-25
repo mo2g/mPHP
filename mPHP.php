@@ -222,16 +222,6 @@ class controller {
 		
 		$this->is_mobile = is_mobile();
 		
-		//session处理，防止跨域丢失
-		if( isset($_GET['PHPSESSID']) ) {
-			$PHPSESSID = $_GET['PHPSESSID'];
-		} elseif( isset($_COOKIE['www_mo2g_session_id']) ) {
-			$PHPSESSID = $_COOKIE['www_mo2g_session_id'];
-		}
-		if(isset($PHPSESSID) ) session_id($PHPSESSID);
-		if( !isset($_SESSION) ) session_start();
-		
-		//if(!self::$visit) self::$visit = M('visit');
 		$service = get_class($this);
 		if(empty(self::$register[$service]) && ( $service != 'controller' ) ) {
 			if( !defined('INIT_ADMIN') ) {
@@ -258,20 +248,16 @@ class controller {
 			$controller = new $controller;
 			call_user_func(array($controller,$action));
 		} else {
-			if( !_exit() ) {
+			//controller 或 action 未定义
+			if( mPHP::$swoole ) {
+				if( !_exit() ) goto_503();
+			} else {
 				goto_503();
 			}
-			/*
-			self::$view->data['title'] = '对不起，此页面暂不开放';
-			$file = CACHE_PATH . 'html/build.html';
-			self::$view->loadTpl('build',$file);
-			*/
 		}
-		
 	}
 	
-	public function __destruct() {
-	}
+	public function __destruct() {}
 }
 
 //为控制器提供逻辑处理服务
@@ -319,8 +305,7 @@ class view {
 	public $is_merger = false;
 	public $is_mini_html = false;
 
-	public function __construct() {
-	}
+	public function __construct() {}
 	
 	//加载xxx.tpl.html模版文件
 	//$tpl:模版文件
@@ -332,8 +317,7 @@ class view {
 		$arrData = $this->_include($tpl,$file);
 		ob_end_clean();
 		
-		if($GLOBALS['CFG']['debug']) {
-		} else {
+		if(!$GLOBALS['CFG']['debug']) {
 			if( $this->is_merger ) $arrData['html'] = $this->merger($arrData['html']);
 			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
 		}

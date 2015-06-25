@@ -82,7 +82,7 @@ function autoload($className) {
 //显示某时刻运行详情
 //使用示例:
 //run_info(__FILE__,__LINE__,1);
-function run_info($file,$line,$true = false) {
+function run_info($file = __FILE__,$line = __LINE__,$true = false) {
 	echo "<div style='display:none'><br>程序运行至文件 $file ,第 $line 行共消耗",(microtime(1) - $GLOBALS['CFG']['start_time']) * 1000,'ms；<br>';
 	if($true) {
 		$intSelectTotle = $GLOBALS['CFG']['db']['select']['totle'];
@@ -469,42 +469,6 @@ function goto_302($url) {
 	mPHP::status(302);
 	mPHP::header('Location',$url);
 	_exit();
-}
-
-
-
-
-function msgDb() {
-	$db = new pdoModel($GLOBALS['CFG']['pdo']);
-	$arrData = $arrTmp = array();
-	$table_index = "{$GLOBALS['CFG']['table_prefix']}message_index";
-	$table_content = "{$GLOBALS['CFG']['table_prefix']}message_content";
-	$strSql = "select a.*,b.reply b_reply
-	from $table_index a,$table_content b 
-	where a.id = b.id and b.reply != ''
-	";
-	$arrData = $db->query($strSql)->fetch_all();
-	//P($arrData);
-	foreach($arrData as $row) {
-		$arrTmp = array(
-			'aid' => $row['aid'],
-			'uid' => 1,
-			'pid' => $row['id'],
-			'rid' => $row['id'],
-			'reply' => 1,
-			'name' => '磨延城',
-			'email' => 'moyancheng@gmail.com',
-			'home' => 'blog.mo2g.com',
-			'date' => $row['reply_date'],
-		);
-		$db->insert($table_index,$arrTmp);
-		
-		$arrTmp = array(
-			'id' => $db->insert_id("{$table_index}_id_seq"),
-			'content' => $row['b_reply'],
-		);
-		$db->insert($table_content,$arrTmp);
-	}
 }
 
 //检测访问设备是否为手机，手机访问返回true，非手机则返回false
