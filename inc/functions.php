@@ -14,45 +14,51 @@ function autoload($className) {
 	static $flag = false;
 
 	if( $view === false ) $view = new view();
-	if( $flag === false ) $flag = !$GLOBALS['CFG']['debug'];
+	if( $flag === false ) $flag = isset($GLOBALS['CFG']['debug']) ? !$GLOBALS['CFG']['debug'] : false;
 
 	$file = strtr($className,array('\\' => '/')) . '.php';
-	
+
 	if( substr($file,-14) == 'Controller.php' ) {
 		if( is_file(CONTROLLERS_PATH.$file) ) {
 			include CONTROLLERS_PATH.$file;
 		} else {
 			if( $flag ) {
-				goto_404();
+				function_exists('goto_404') ? goto_404() : mPHP::status(404);
 			} else {
+				mPHP::status(503);
 				$view->data['title'] = '控制器不存在！';
 				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
+			_exit();
 		}
 	} elseif(substr($file,-11) == 'Service.php') {
 		if( is_file(SERVICES_PATH.$file) ) {
 			include SERVICES_PATH.$file;
 		} else {
 			if( $flag ) {
-				goto_404();
+				function_exists('goto_404') ? goto_404() : mPHP::status(404);
 			} else {
+				mPHP::status(503);
 				$view->data['title'] = 'service模块不存在！';
 				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
+			_exit();
 		}
 	} elseif(substr($file,-7) == 'Dao.php') {
 		if( is_file(DAOS_PATH.$file) ) {
 			include DAOS_PATH.$file;
 		} else {
 			if( $flag ) {
-				goto_404();
+				function_exists('goto_404') ? goto_404() : mPHP::status(404);
 			} else {
+				mPHP::status(503);
 				$view->data['title'] = 'dao模块不存在！';
 				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
+			_exit();
 		}
 	} elseif( substr($file,-9) == 'Model.php' ) {
 		if( is_file(MODELS_MPHP.$file) ) {
@@ -61,21 +67,25 @@ function autoload($className) {
 			include MODELS_PATH.$file;
 		} else {
 			if( $flag ) {
-				goto_404();
+				function_exists('goto_404') ? goto_404() : mPHP::status(404);
 			} else {
+				mPHP::status(503);
 				$view->data['title'] = 'Model模块不存在！';
 				$view->data['msg'] = "{$file} 不存在!";
 				$view->loadTpl('error');
 			}
+			_exit();
 		}
 	} else {
 		if( $flag ) {
-			goto_404();
+			function_exists('goto_404') ? goto_404() : mPHP::status(404);
 		} else {
+			mPHP::status(503);
 			$view->data['title'] = '访问错误！';
 			$view->data['msg'] = "未定义操作 $file";
 			$view->loadTpl('error');
 		}
+		_exit();
 	}
 }
 
@@ -387,144 +397,6 @@ function mini_html($html) {
 		$html .= $str;
 	}
 	return $html;
-}
-
-//网站维护期间使用，避免搜索引擎误判
-function goto_503() {
-	mPHP::status(503);
-	$view = new view();
-	$file = CACHE_PATH . 'html/404.html';
-	$view->cache($file,$GLOBALS['CFG']['html_cache_time']);
-	$view->loadTpl('503');
-	_exit();
-	return true;
-}
-
-//404，页面没找到
-function goto_404() {
-	mPHP::status(404);
-	$view = new view();
-	$file = INDEX_PATH . '404.html';
-	$cacheTime = $GLOBALS['CFG']['html_cache_time'];
-	$createTime = file_exists($file) ? filemtime($file) : 0;
-	$time = $_SERVER['REQUEST_TIME'];
-	if( ($createTime + $cacheTime >= $time ) && !$GLOBALS['CFG']['debug'] ) {
-		include $file;
-		_exit();
-		return true;
-	}
-	$is_mobile = is_mobile();
-	
-	$blogService = new blogService();
-	$arrBlogType = $blogService->getTypeByBlog();
-	$arrTypeAll = $blogService->getTypeAll();
-	$arrTypeTop = $blogService->getTypeByTop();
-	$arrBlogNav = $arrTypeAll[$arrBlogType[0]['id']];
-	$arrTags = $blogService->getTagsAll();
-	//$arrNav = $blogService->getCategoryTitleByEnglishInBlogNav('blog',$arrBlogNav);
-	
-	//只显示包含5篇以上文章的标签
-	foreach( $arrTags as $key => $row ) {
-		if( $row['totle'] < 5 ) unset($arrTags[$key]);
-	}
-	
-	$view->data['type_top'] = $arrTypeTop;
-	$view->data['type_all'] = $arrTypeAll;
-	$view->data['blog_nav'] = $arrBlogNav;
-	$view->data['tags'] = $arrTags;
-	$view->data['title'] = '404';
-	if( $is_mobile ) {
-		if($GLOBALS['CFG']['404']) $view->loadTpl('mobile_404',$file);
-		else $view->loadTpl('admin/mobile_404',$file);
-	} else {
-		if($GLOBALS['CFG']['404']) $view->loadTpl('404',$file);
-		else $view->loadTpl('admin/404',$file);
-	}
-	_exit();
-}
-
-//403，页面没权限
-function goto_403() {
-	mPHP::status(301);
-	$view = new view();
-	$file = CACHE_PATH . 'html/403.html';
-	$cache = $view->cache($file,$GLOBALS['CFG']['html_cache_time']);
-	if( $cache) {
-		_exit();
-		return true;
-	}
-	$view->loadTpl('403');
-	_exit();
-}
-
-//301，页面重定向
-function goto_301($url) {
-	mPHP::status(301);
-	mPHP::header('Location',$url);
-	_exit();
-}
-
-//302，页面临时跳转
-function goto_302($url) {
-	mPHP::status(302);
-	mPHP::header('Location',$url);
-	_exit();
-}
-
-//检测访问设备是否为手机，手机访问返回true，非手机则返回false
-function is_mobile() {
-	$is_mobile = false;
-	$user_agent = $_SERVER['HTTP_USER_AGENT'] ? $_SERVER['HTTP_USER_AGENT'] : $_SERVER['USER-AGENT'];
-	$mobile_agents = Array("240x320","acer","acoon","acs-","abacho","ahong","airness","alcatel",
-	"amoi","android","anywhereyougo.com","applewebkit/525","applewebkit/532","asus","audio","au-mic",
-	"avantogo","becker","benq","bilbo","bird","blackberry","blazer","bleu","cdm-","compal","coolpad",
-	"danger","dbtel","dopod","elaine","eric","etouch","fly ","fly_","fly-","go.web","goodaccess",
-	"gradiente","grundig","haier","hedy","hitachi","htc","huawei","hutchison","inno","ipad","ipaq",
-	"ipod","jbrowser","kddi","kgt","kwc","lenovo",
-	"lg ","lg2","lg3","lg4","lg5","lg7","lg8","lg9","lg-","lge-","lge9",
-	"longcos","maemo","mercator","meridian","micromax","midp","mini","mitsu",
-	"mmm","mmp","mobi","mot-","moto","nec-","netfront","newgen","nexian","nf-browser","nintendo",
-	"nitro","nokia","nook","novarra","obigo","palm","panasonic","pantech","philips","phone","pg-",
-	"playstation","pocket","pt-","qc-","qtek","rover","sagem","sama","samu","sanyo","samsung","sch-",
-	"scooter","sec-","sendo","sgh-","sharp","siemens","sie-","softbank","sony","spice","sprint","spv",
-	"symbian","tablet","talkabout","tcl-","teleca","telit","tianyu","tim-","toshiba","tsm","up.browser",
-	"utec","utstar","verykool","virgin","vk-","voda","voxtel","vx","wap","wellco","wig browser","wii",
-	"windows ce","wireless","xda","xde","zte");
-	foreach($mobile_agents as $device) {
-		if(stristr($user_agent, $device)) {
-			$is_mobile = true;
-			break;
-		}
-	}
-	return $is_mobile;
-}
-
-/**
-* 判断是否ajax方式
-* @return bool
-*/
-function is_ajax() {
-	if (!empty($_REQUEST['ajax']) || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) {
-		return true;
-	}
-	return false;
-}
-
-//获取文件拓展名
-function getFileExt($strName) {
-    return strtolower( strrchr( $strName , '.' ) );
-}
-
-function mimg($img,$w,$h) {
-	if( strpos($img,'attachments') ) {
-		$h = empty($h) ? $h : $w;
-	} else {
-		return $img;
-	}
-}
-
-function token() {
-	return safe::getToken();
 }
 
 function mlog($log = '',$file = '') {

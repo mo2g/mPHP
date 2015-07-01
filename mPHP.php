@@ -8,7 +8,7 @@ if( !defined('INIT_MPHP') ) exit;
 
 include MPHP_PATH.'inc/define.php';//加载常量集
 include MPHP_PATH.'inc/functions.php';//加载常用函数集
-include MPHP_PATH.'inc/plus.php';//加载常用函数集
+// include MPHP_PATH.'inc/plus.php';//加载常用函数集
 
 //核心类
 class mPHP {
@@ -28,24 +28,7 @@ class mPHP {
 		router::init();
 		$this->controller->load();
 	}
-/*
-	public function addNameSpace($path) {
-		$this->namespace[] = $path;
-	}
 
-	public static function autoloadNameSpace($className) {
-		$fileName = strtr($className,array('\\' => '/'));
-		$fileName .= '.php';
-		foreach( $this->namespace as $path ) {
-			$file = $path . $fileName;
-			if( is_file($file) ) {
-				include $file;
-			} else {
-				goto_404();
-			}
-		}
-	}
-*/
 	/*
 	swoole拓展会导致php原生函数header失效
 	*/
@@ -235,10 +218,12 @@ class router {
 
 //控制器
 class controller {
-	public static $view = 0;
+	public static $view = false;
+	public static $flag = false;
 	
 	public function __construct() {
 		if(!self::$view) self::$view = new view();
+		if(!self::$flag) self::$flag = isset($GLOBALS['CFG']['debug']) ? !$GLOBALS['CFG']['debug'] : false;
 	}
 	
 	public function load() {
@@ -254,12 +239,19 @@ class controller {
 			$controller = new $controller;
 			call_user_func(array($controller,$action));
 		} else {
-			//controller 或 action 未定义
-			if( mPHP::$swoole ) {
-				if( !_exit() ) goto_503();
+			if( $flag ) {
+				//action 未定义
+				if( mPHP::$swoole ) {
+					if( !_exit() ) function_exists('goto_503') ? goto_503() : mPHP::status(503);
+				} else {
+					function_exists('goto_503') ? goto_503() : mPHP::status(503);
+				}
 			} else {
-				goto_503();
+				self::$view->data['title'] = 'Action不存在！';
+				self::$view->data['msg'] = "{$action} 未定义!";
+				self::$view->loadTpl('error');
 			}
+			_exit();
 		}
 	}
 	
@@ -393,16 +385,27 @@ class view {
 		if( is_array($this->data) ) {
 			foreach($this->data as $key => &$val) $$key = $val;
 		}
-
 		$tpl_file = TPL_PATH."{$tpl}.tpl.html";
 		$tpl_c_file = TPL_C_PATH . "{$tpl}.tpl.php";
 		//判断是否需要重新编译模版
 		if( !file_exists($tpl_c_file) || filemtime($tpl_file) != filemtime($tpl_c_file) ) {
+			$flag = true;
 			//tpl模版 转译 php文件 并保存
-			$html = file_get_contents($tpl_file);
+			if( file_exists($tpl_file) ) {
+				$html = file_get_contents($tpl_file);
+			} elseif( file_exists(TPL_MPHP_PATH."{$tpl}.tpl.html") ) {
+				$html = file_get_contents(TPL_MPHP_PATH."{$tpl}.tpl.html");
+			} else {
+				$flag = false;
+				$title = '模版文件不存在';
+				$msg = "$tpl_file";
+				$html = file_get_contents(TPL_MPHP_PATH."error.tpl.html");
+			}
+			
 			$html = '<?php if(!defined("INIT_MPHP"))exit;?>' . $this->tplCompile($html);//替换标签
+			file_exists(TPL_C_PATH) or mkdir(TPL_C_PATH,0755,true);
 			file_put_contents($tpl_c_file,$html);
-			touch($tpl_c_file,filemtime($tpl_file));//编译文件与模版文件同步修改时间
+			if( $flag ) touch($tpl_c_file,filemtime($tpl_file));//编译文件与模版文件同步修改时间
 		}
 		
 		//php文件 转译 静态html
