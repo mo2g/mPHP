@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 创建时间:2012-03-01
-最后更新时间: 2015-05-06
+最后更新时间: 2015-06-30
 */
 if( !defined('INIT_MPHP') ) exit;
 
@@ -24,11 +24,11 @@ class mPHP {
 	}
 	
 	public function run() {
-		router::init();
 		safe::safeGPC();
+		router::init();
 		$this->controller->load();
 	}
-
+/*
 	public function addNameSpace($path) {
 		$this->namespace[] = $path;
 	}
@@ -45,7 +45,7 @@ class mPHP {
 			}
 		}
 	}
-
+*/
 	/*
 	swoole拓展会导致php原生函数header失效
 	*/
@@ -61,27 +61,57 @@ class mPHP {
 		if( mPHP::$swoole ) {
 			mPHP::$swoole['response']->status($http_status_code);
 		} else {
-			switch ($http_status_code) {
-				case 301:
-					header('HTTP/1.1 301 Moved Permanently');
-					break;
-				case 304:
-					header('HTTP/1.1 304 Not Modified');
-					break;
-				case 403:
-					header('HTTP/1.1 403 Forbidden');
-					break;
-				case 404:
-					header('HTTP/1.1 404 Not Found');
-					break;
-				case 500:
-					header('HTTP/1.1 500 Internal Server Error');
-					break;
-				case 503:
-					header('HTTP/1.1 503 Service Temporarily Unavailable');
-					header('Status: 503 Service Temporarily Unavailable');
-					header('Retry-After: 3600');
-					break;
+			static $_status = array(
+				// Informational 1xx
+				100 => 'Continue',
+				101 => 'Switching Protocols',
+				// Success 2xx
+				200 => 'OK',
+				201 => 'Created',
+				202 => 'Accepted',
+				203 => 'Non-Authoritative Information',
+				204 => 'No Content',
+				205 => 'Reset Content',
+				206 => 'Partial Content',
+				// Redirection 3xx
+				300 => 'Multiple Choices',
+				301 => 'Moved Permanently',
+				302 => 'Found',  // 1.1
+				303 => 'See Other',
+				304 => 'Not Modified',
+				305 => 'Use Proxy',
+				// 306 is deprecated but reserved
+				307 => 'Temporary Redirect',
+				// Client Error 4xx
+				400 => 'Bad Request',
+				401 => 'Unauthorized',
+				402 => 'Payment Required',
+				403 => 'Forbidden',
+				404 => 'Not Found',
+				405 => 'Method Not Allowed',
+				406 => 'Not Acceptable',
+				407 => 'Proxy Authentication Required',
+				408 => 'Request Timeout',
+				409 => 'Conflict',
+				410 => 'Gone',
+				411 => 'Length Required',
+				412 => 'Precondition Failed',
+				413 => 'Request Entity Too Large',
+				414 => 'Request-URI Too Long',
+				415 => 'Unsupported Media Type',
+				416 => 'Requested Range Not Satisfiable',
+				417 => 'Expectation Failed',
+				// Server Error 5xx
+				500 => 'Internal Server Error',
+				501 => 'Not Implemented',
+				502 => 'Bad Gateway',
+				503 => 'Service Unavailable',
+				504 => 'Gateway Timeout',
+				505 => 'HTTP Version Not Supported',
+				509 => 'Bandwidth Limit Exceeded'
+			);
+			if(isset($_status[$http_status_code])) {
+				header("HTTP/1.1 {$http_status_code} {$_status[$http_status_code]}");
 			}
 		}
 	}
@@ -111,7 +141,6 @@ class mPHP {
 			mkdir(CONTROLLERS_PATH);
 			file_put_contents(CONTROLLERS_PATH.'index.html','');
 		}
-
 		if(!is_dir(MODELS_PATH)) {
 			mkdir(MODELS_PATH);
 			file_put_contents(MODELS_PATH.'index.html','');
@@ -207,32 +236,9 @@ class router {
 //控制器
 class controller {
 	public static $view = 0;
-	public static $visit = 0;   
-	public static $check = 0;
-	public static $register = array();
-	public static $CFG = 0;
-	public $service = 0;
-	public $is_mobile = 0;
 	
 	public function __construct() {
-		if( !self::$CFG ) {
-			self::$CFG = &$GLOBALS['CFG'];
-		}
 		if(!self::$view) self::$view = new view();
-		
-		$this->is_mobile = is_mobile();
-		
-		$service = get_class($this);
-		if(empty(self::$register[$service]) && ( $service != 'controller' ) ) {
-			if( !defined('INIT_ADMIN') ) {
-				$service = str_replace('Controller','',$service);
-				self::$register[$service] = S($service);
-			}
-		}
-		
-		if( $service != 'controller' && !defined('INIT_ADMIN')) {
-			$this->service = self::$register[$service];
-		}
 	}
 	
 	public function load() {
