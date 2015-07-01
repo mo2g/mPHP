@@ -15,7 +15,6 @@ class mPHP {
 	private static $mPHP = false;
 	public static $swoole = false;
 	
-	public $namespace = array();
 	public $controller;
 
 	private function __construct() {
@@ -111,7 +110,7 @@ class mPHP {
 	
 	public static function initMainDir() {
 		if(!is_dir(CACHE_PATH)) {
-			mkdir(CACHE_PATH);
+			mkdir(CACHE_PATH,0755,true);
 			file_put_contents(CACHE_PATH.'index.html','');
 		}
 		/*
@@ -121,23 +120,23 @@ class mPHP {
 		}
 		*/
 		if(!is_dir(CONTROLLERS_PATH)) {
-			mkdir(CONTROLLERS_PATH);
+			mkdir(CONTROLLERS_PATH,0755,true);
 			file_put_contents(CONTROLLERS_PATH.'index.html','');
 		}
 		if(!is_dir(MODELS_PATH)) {
-			mkdir(MODELS_PATH);
+			mkdir(MODELS_PATH,0755,true);
 			file_put_contents(MODELS_PATH.'index.html','');
 		}
 		if(!is_dir(SERVICES_PATH)) {
-			mkdir(SERVICES_PATH);
+			mkdir(SERVICES_PATH,0755,true);
 			file_put_contents(SERVICES_PATH.'index.html','');
 		}
 		if(!is_dir(DAOS_PATH)) {
-			mkdir(DAOS_PATH);
+			mkdir(DAOS_PATH,0755,true);
 			file_put_contents(DAOS_PATH.'index.html','');
 		}
 		if(!is_dir(TPL_PATH)) {
-			mkdir(TPL_PATH);
+			mkdir(TPL_PATH,0755,true);
 			file_put_contents(TPL_PATH.'index.html','');
 		}
 		if(!is_dir(TPL_C_PATH.'admin')) {

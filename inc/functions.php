@@ -371,12 +371,6 @@ function file_merger($arrFile,$out,$cache=false) {
 		}
 	}
 	
-	//2014-2-28
-	//由于java压缩css在手机上无法自适应屏幕，所以暂时使用PHP压缩
-	if( $type == 'css' ) {
-		//$GLOBALS['CFG']['java'] = 1;
-	}
-	
 	if( $type == 'js' ) return "<script type=\"text/javascript\" src=\"{$return}\"></script>\n";
 	elseif( $type == 'css' ) return "<link rel=\"stylesheet\" type=\"text/css\" href=\"{$return}\">\n";
 }
