@@ -397,7 +397,7 @@ class view {
 		$arrData = $this->_include($tpl,$file);
 		ob_end_clean();
 		
-		if(!self::$debug) {
+		if(!mPHP::$debug) {
 			if( $this->is_merger ) $arrData['html'] = $this->merger($arrData['html']);
 			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
 		}
@@ -507,7 +507,7 @@ class view {
 		$time = $_SERVER['REQUEST_TIME'];
 
 		$createTime = file_exists($file) ? filemtime($file) : 0;
-		if( ($createTime + $cacheTime >= $time ) && !self::$debug ) {
+		if( ($createTime + $cacheTime >= $time ) && !mPHP::$debug ) {
 			$createTime = date("D, d M Y H:i:s",$createTime);
 			mPHP::header('Cache-Control','max-age=0');
 			mPHP::header('Last-Modified',$createTime);

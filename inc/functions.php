@@ -166,7 +166,7 @@ function P($val,$true = true) {
 	//elseif( is_string($val) || is_numeric($val) ) echo $val;
 	else var_dump($val);
 	echo '</pre>';
-	if($true) _exit();
+	if($true) mPHP::_exit();
 }
 
 //返回唯一的 Service 实例
