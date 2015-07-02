@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 最后更新时间:2015-06-06
-最后更新时间:2015-06-06
+最后更新时间:2015-07-02
 功能：
 
 */
@@ -10,6 +10,7 @@ class cacheFileModel {
 	public $fileName;
 
 	public function __construct() {
+		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
 		$this->in('main');
 	}
 

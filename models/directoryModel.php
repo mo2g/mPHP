@@ -114,6 +114,7 @@ class directoryModel {
 	
 	//创建缓存目录
 	public static function dirCache() {
+		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
 		if($arrDir = C('cache','html_cache_dir')) {
 			if(is_dir(CACHE_PATH.'html')) {
 				foreach($arrDir as $key => $value) {

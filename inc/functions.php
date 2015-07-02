@@ -2,92 +2,8 @@
 /*
 作者:moyancheng
 最后更新时间:2013-05-17
-最后更新时间:2015-05-06
+最后更新时间:2015-07-02
 */
-if( !defined('INIT_MPHP') ) exit;
-
-/*
-功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
-*/
-function autoload($className) {
-	static $view = false;
-	static $flag = false;
-
-	if( $view === false ) $view = new view();
-	if( $flag === false ) $flag = isset($GLOBALS['CFG']['debug']) ? !$GLOBALS['CFG']['debug'] : false;
-
-	$file = strtr($className,array('\\' => '/')) . '.php';
-
-	if( substr($file,-14) == 'Controller.php' ) {
-		if( is_file(CONTROLLERS_PATH.$file) ) {
-			include CONTROLLERS_PATH.$file;
-		} else {
-			if( $flag ) {
-				function_exists('goto_404') ? goto_404() : mPHP::status(404);
-			} else {
-				mPHP::status(503);
-				$view->data['title'] = '控制器不存在！';
-				$view->data['msg'] = "{$file} 不存在!";
-				$view->loadTpl('error');
-			}
-			_exit();
-		}
-	} elseif(substr($file,-11) == 'Service.php') {
-		if( is_file(SERVICES_PATH.$file) ) {
-			include SERVICES_PATH.$file;
-		} else {
-			if( $flag ) {
-				function_exists('goto_404') ? goto_404() : mPHP::status(404);
-			} else {
-				mPHP::status(503);
-				$view->data['title'] = 'service模块不存在！';
-				$view->data['msg'] = "{$file} 不存在!";
-				$view->loadTpl('error');
-			}
-			_exit();
-		}
-	} elseif(substr($file,-7) == 'Dao.php') {
-		if( is_file(DAOS_PATH.$file) ) {
-			include DAOS_PATH.$file;
-		} else {
-			if( $flag ) {
-				function_exists('goto_404') ? goto_404() : mPHP::status(404);
-			} else {
-				mPHP::status(503);
-				$view->data['title'] = 'dao模块不存在！';
-				$view->data['msg'] = "{$file} 不存在!";
-				$view->loadTpl('error');
-			}
-			_exit();
-		}
-	} elseif( substr($file,-9) == 'Model.php' ) {
-		if( is_file(MODELS_MPHP.$file) ) {
-			include MODELS_MPHP.$file;
-		} elseif( is_file(MODELS_PATH.$file) ) {
-			include MODELS_PATH.$file;
-		} else {
-			if( $flag ) {
-				function_exists('goto_404') ? goto_404() : mPHP::status(404);
-			} else {
-				mPHP::status(503);
-				$view->data['title'] = 'Model模块不存在！';
-				$view->data['msg'] = "{$file} 不存在!";
-				$view->loadTpl('error');
-			}
-			_exit();
-		}
-	} else {
-		if( $flag ) {
-			function_exists('goto_404') ? goto_404() : mPHP::status(404);
-		} else {
-			mPHP::status(503);
-			$view->data['title'] = '访问错误！';
-			$view->data['msg'] = "未定义操作 $file";
-			$view->loadTpl('error');
-		}
-		_exit();
-	}
-}
 
 //显示某时刻运行详情
 //使用示例:
@@ -398,22 +314,4 @@ function mlog($log = '',$file = '') {
 	$log = print_r($log,true);
 	$log = "date：" . date("Y-m-d H:i:s") . "\n{$log}\n";
 	file_put_contents($file,$log,FILE_APPEND|LOCK_EX);
-}
-
-/*
-swoole中不允许试用exit，所以使用如下方式记录PHP是否执行过  _exit()
-已经执行返回：true
-没有执行返回：false
-*/
-function _exit() {
-	if( mPHP::$swoole ) {
-		if( $GLOBALS['EXIT_MPHP'] ) {
-			return true;
-		} else {
-			$GLOBALS['EXIT_MPHP'] = 1;
-			return false;
-		}
-	} else {
-		exit;
-	}
 }

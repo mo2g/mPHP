@@ -2,46 +2,169 @@
 /*
 作者:moyancheng
 创建时间:2012-03-01
-最后更新时间: 2015-06-30
+最后更新时间:2015-07-02
 */
-if( !defined('INIT_MPHP') ) exit;
 
 include MPHP_PATH.'inc/define.php';//加载常量集
-include MPHP_PATH.'inc/functions.php';//加载常用函数集
+// include MPHP_PATH.'inc/functions.php';//加载常用函数集
 // include MPHP_PATH.'inc/plus.php';//加载常用函数集
 
 //核心类
 class mPHP {
-	private static $mPHP = false;
+	public static $mPHP = false;
 	public static $swoole = false;
+	public static $debug = false;
+	public static $view = false;
+	public static $exit = false;
+	public static $include_file_lists = array();
 	
-	public $controller;
-
 	private function __construct() {
-		$this->controller = new controller();
-		spl_autoload_register('autoload');
+		if(!self::$view) self::$view = new view();
+		if(!self::$debug) self::$debug = isset($GLOBALS['CFG']['debug']) ? $GLOBALS['CFG']['debug'] : true;
+		spl_autoload_register('self::autoload');
 	}
 	
 	public function run() {
 		safe::safeGPC();
 		router::init();
-		$this->controller->load();
+
+		$controller = isset($_GET['c']) ? "{$_GET['c']}Controller" : 'indexController';
+		$action 	= isset($_GET['a']) ? "{$_GET['a']}Action"  : 'indexAction';
+
+		if( method_exists($controller,$action) ) {
+			$controller = new $controller;
+			call_user_func(array($controller,$action));
+		} else {
+			if( self::$debug ) {
+				self::$view->data['title'] = 'Action不存在！';
+				self::$view->data['msg'] = "{$action} 未定义!";
+				self::$view->loadTpl('error');
+			} else {
+				//action 未定义
+				if( self::$swoole ) {
+					if( !self::_exit() ) function_exists('goto_503') ? goto_503() : self::status(503);
+				} else {
+					function_exists('goto_503') ? goto_503() : self::status(503);
+				}
+			}
+			self::_exit();
+		}
+	}
+
+	/*
+	功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
+	*/
+	public static function autoload($className) {
+		$file = strtr($className,array('\\' => '/')) . '.php';
+
+		if( substr($file,-14) == 'Controller.php' ) {
+			if( is_file(CONTROLLERS_PATH.$file) ) {
+				include CONTROLLERS_PATH.$file;
+			} else {
+				if( self::$debug ) {
+					self::status(503);
+					self::$view->data['title'] = '控制器不存在！';
+					self::$view->data['msg'] = "{$file} 不存在!";
+					self::$view->loadTpl('error');
+				} else {
+					function_exists('goto_404') ? goto_404() : self::status(404);
+				}
+				self::_exit();
+			}
+		} elseif(substr($file,-11) == 'Service.php') {
+			if( is_file(SERVICES_PATH.$file) ) {
+				include SERVICES_PATH.$file;
+			} else {
+				if( self::$debug ) {
+					self::status(503);
+					self::$view->data['title'] = 'service模块不存在！';
+					self::$view->data['msg'] = "{$file} 不存在!";
+					self::$view->loadTpl('error');
+				} else {
+					function_exists('goto_404') ? goto_404() : self::status(404);
+				}
+				self::_exit();
+			}
+		} elseif(substr($file,-7) == 'Dao.php') {
+			if( is_file(DAOS_PATH.$file) ) {
+				include DAOS_PATH.$file;
+			} else {
+				if( self::$debug ) {
+					self::status(503);
+					self::$view->data['title'] = 'dao模块不存在！';
+					self::$view->data['msg'] = "{$file} 不存在!";
+					self::$view->loadTpl('error');
+				} else {
+					function_exists('goto_404') ? goto_404() : self::status(404);
+				}
+				self::_exit();
+			}
+		} elseif( substr($file,-9) == 'Model.php' ) {
+			if( is_file(MODELS_MPHP.$file) ) {
+				include MODELS_MPHP.$file;
+			} elseif( is_file(MODELS_PATH.$file) ) {
+				include MODELS_PATH.$file;
+			} else {
+				if( self::$debug ) {
+					self::status(503);
+					self::$view->data['title'] = 'Model模块不存在！';
+					self::$view->data['msg'] = "{$file} 不存在!";
+					self::$view->loadTpl('error');
+				} else {
+					function_exists('goto_404') ? goto_404() : self::status(404);
+				}
+				self::_exit();
+			}
+		} else {
+			if( self::$debug ) {
+				self::status(503);
+				self::$view->data['title'] = '访问错误！';
+				self::$view->data['msg'] = "未定义操作 $file";
+				self::$view->loadTpl('error');
+			} else {
+				function_exists('goto_404') ? goto_404() : self::status(404);
+			}
+			self::_exit();
+		}
+	}
+
+	//同一个文件，只加载一次
+	public static function inc($filename) {
+		isset(self::$include_file_lists[$filename]) or ( (self::$include_file_lists[$filename] = true) and include $filename);  
+	}
+
+	/*
+	swoole中不允许试用exit，所以使用如下方式记录PHP是否执行过  _exit()
+	已经执行返回：true
+	没有执行返回：false
+	*/
+	public static function _exit() {
+		if( self::$swoole ) {
+			if( self::$exit ) {
+				return true;
+			} else {
+				self::$exit = 1;
+				return false;
+			}
+		} else {
+			exit;
+		}
 	}
 
 	/*
 	swoole拓展会导致php原生函数header失效
 	*/
 	public static function header($key,$value) {
-		if( mPHP::$swoole ) {
-			mPHP::$swoole['response']->header($key,$value);
+		if( self::$swoole ) {
+			self::$swoole['response']->header($key,$value);
 		} else {
 			header($key . ': ' . $value );
 		}
 	}
 
 	public static function status($http_status_code) {
-		if( mPHP::$swoole ) {
-			mPHP::$swoole['response']->status($http_status_code);
+		if( self::$swoole ) {
+			self::$swoole['response']->status($http_status_code);
 		} else {
 			static $_status = array(
 				// Informational 1xx
@@ -156,7 +279,7 @@ class mPHP {
 	
 	//初始化数据库
 	public static function initDb() {
-		$db = new pdoModel($GLOBALS['CFG']['pdo']);
+		$db = db::init();
 		$db->initDb('initdata/tables.sql');
 		unset($db);
 	}
@@ -183,7 +306,7 @@ class router {
 		for($i = 2; $i < $count; $i += 2) {
 			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
 		}
-		$_REQUEST = array_merge($_GET, $_REQUEST);
+		// $_REQUEST = array_merge($_GET, $_REQUEST);
 	}
 
 	public static function path_info() {
@@ -218,56 +341,14 @@ class router {
 //控制器
 class controller {
 	public static $view = false;
-	public static $flag = false;
 	
 	public function __construct() {
-		if(!self::$view) self::$view = new view();
-		if(!self::$flag) self::$flag = isset($GLOBALS['CFG']['debug']) ? !$GLOBALS['CFG']['debug'] : false;
+		if(!self::$view) self::$view = &mPHP::$view;
 	}
-	
-	public function load() {
-		if( isset($_GET['c']) ) $controller = "{$_GET['c']}Controller";
-		elseif( isset($_POST['c']) ) $controller = "{$_POST['c']}Controller";
-		else $controller = 'indexController';
-
-		if( isset($_GET['a']) ) $action = "{$_GET['a']}Action";
-		elseif( isset($_POST['a']) ) $action = "{$_POST['a']}Action";
-		else $action = 'indexAction';
-
-		if( method_exists($controller,$action) ) {
-			$controller = new $controller;
-			call_user_func(array($controller,$action));
-		} else {
-			if( $flag ) {
-				//action 未定义
-				if( mPHP::$swoole ) {
-					if( !_exit() ) function_exists('goto_503') ? goto_503() : mPHP::status(503);
-				} else {
-					function_exists('goto_503') ? goto_503() : mPHP::status(503);
-				}
-			} else {
-				self::$view->data['title'] = 'Action不存在！';
-				self::$view->data['msg'] = "{$action} 未定义!";
-				self::$view->loadTpl('error');
-			}
-			_exit();
-		}
-	}
-	
-	public function __destruct() {}
 }
 
 //为控制器提供逻辑处理服务
-class service {
-	public static $mem = 0;
-	public static $httpsqsModel = 0;
-	
-	public function __construct() {
-		if(!self::$mem) self::$mem = new memcachedModel($GLOBALS['CFG']['memcached']);
-		if(!self::$httpsqsModel) self::$httpsqsModel = M('httpsqs');
-		$GLOBALS['CFG']['mem'] = self::$mem;
-	}
-}
+class service {}
 
 //为逻辑处理服务提供数据库操作
 class dao {
@@ -302,8 +383,10 @@ class view {
 	public $is_merger = false;
 	public $is_mini_html = false;
 
-	public function __construct() {}
-	
+	public function __construct() {
+		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
+	}
+
 	//加载xxx.tpl.html模版文件
 	//$tpl:模版文件
 	//$file:根据模版生成的静态文件
@@ -314,7 +397,7 @@ class view {
 		$arrData = $this->_include($tpl,$file);
 		ob_end_clean();
 		
-		if(!$GLOBALS['CFG']['debug']) {
+		if(!self::$debug) {
 			if( $this->is_merger ) $arrData['html'] = $this->merger($arrData['html']);
 			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
 		}
@@ -422,11 +505,9 @@ class view {
 	public function cache($file,$cacheTime) {
 		$this->is_cache = true;
 		$time = $_SERVER['REQUEST_TIME'];
-		if( isset($_SESSION['user']['admin']) && $_SESSION['user']['admin'] < 9 ) {
-			$cacheTime = 0;
-		}
+
 		$createTime = file_exists($file) ? filemtime($file) : 0;
-		if( ($createTime + $cacheTime >= $time ) && !$GLOBALS['CFG']['debug'] ) {
+		if( ($createTime + $cacheTime >= $time ) && !self::$debug ) {
 			$createTime = date("D, d M Y H:i:s",$createTime);
 			mPHP::header('Cache-Control','max-age=0');
 			mPHP::header('Last-Modified',$createTime);
@@ -435,7 +516,7 @@ class view {
 			} else {
 				include $file;
 			}
-			_exit();
+			mPHP::_exit();
 			return true;
 		}
 		return false;
@@ -445,14 +526,12 @@ class view {
 	public static function clearCache() {
 		directoryModel::clearDir(CACHE_PATH);
 	}
-	
 }
 
 class safe {
 	public static $magic_quotes_gpc;
 	
 	public function __construct() {
-		if( !isset($_SESSION) ) session_start();
 		if( !self::$magic_quotes_gpc ) self::$magic_quotes_gpc = get_magic_quotes_gpc();
 	}
 	
@@ -500,7 +579,6 @@ class safe {
 	}
 	
 	//检测跳转域名是否正确
-	public static function checkDomain() {
-	}
+	public static function checkDomain() {}
 	
 }

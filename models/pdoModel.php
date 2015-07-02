@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 创建时间:2013-04-01
-最后更新时间:2014-01-18
+最后更新时间:2015-07-02
 */
 
 class pdoModel {
@@ -16,6 +16,7 @@ class pdoModel {
 	public $sql;
 	
 	public function __construct($arrConfig) {
+		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
 		$type = $arrConfig['type'];
 		$name = $arrConfig['dbname'];
 		$host = $arrConfig['host'];
