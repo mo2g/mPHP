@@ -115,6 +115,8 @@ class mPHP {
 				}
 				self::_exit();
 			}
+		} elseif( is_file(INDEX_PATH.'libs/exts/class/'.$file) ) {
+			include INDEX_PATH.'libs/exts/class/'.$file;//加载外部引用类
 		} else {
 			if( self::$debug ) {
 				self::status(503);
