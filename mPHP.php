@@ -5,10 +5,6 @@
 最后更新时间:2015-07-02
 */
 
-// include MPHP_PATH.'inc/define.php';//加载常量集
-// include MPHP_PATH.'inc/functions.php';//加载常用函数集
-// include MPHP_PATH.'inc/plus.php';//加载常用函数集
-
 //核心类
 class mPHP {
 	public static $mPHP = false;
@@ -29,7 +25,7 @@ class mPHP {
 		router::init();
 
 		$controller = isset($_GET['c']) ? "{$_GET['c']}Controller" : 'indexController';
-		$action 	= isset($_GET['a']) ? "{$_GET['a']}Action"  : 'indexAction';
+		$action		= isset($_GET['a']) ? "{$_GET['a']}Action"  : 'indexAction';
 
 		if( method_exists($controller,$action) ) {
 			$controller = new $controller;
@@ -345,7 +341,7 @@ class controller {
 	public static $view = false;
 	
 	public function __construct() {
-		if(!self::$view) self::$view = &mPHP::$view;
+		if(!self::$view) self::$view = mPHP::$view;
 	}
 }
 
