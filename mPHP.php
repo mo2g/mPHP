@@ -5,7 +5,7 @@
 最后更新时间:2015-07-02
 */
 
-include MPHP_PATH.'inc/define.php';//加载常量集
+// include MPHP_PATH.'inc/define.php';//加载常量集
 // include MPHP_PATH.'inc/functions.php';//加载常用函数集
 // include MPHP_PATH.'inc/plus.php';//加载常用函数集
 
@@ -385,16 +385,13 @@ class view {
 	public $is_merger = false;
 	public $is_mini_html = false;
 
-	public function __construct() {
-		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
-	}
-
 	//加载xxx.tpl.html模版文件
 	//$tpl:模版文件
 	//$file:根据模版生成的静态文件
 	//$dir:模版文件夹分支（默认为空）
 	//$cacheTime:静态文件缓存时间
 	public function loadTpl($tpl,$file = '') {
+		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
 		ob_start();
 		$arrData = $this->_include($tpl,$file);
 		ob_end_clean();
@@ -485,7 +482,6 @@ class view {
 				$msg = "$tpl_file";
 				$html = file_get_contents(TPL_MPHP_PATH."error.tpl.html");
 			}
-			
 			$html = '<?php if(!defined("INIT_MPHP"))exit;?>' . $this->tplCompile($html);//替换标签
 			file_exists(TPL_C_PATH) or mkdir(TPL_C_PATH,0755,true);
 			file_put_contents($tpl_c_file,$html);
