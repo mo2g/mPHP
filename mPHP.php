@@ -5,6 +5,41 @@
 最后更新时间:2015-07-02
 */
 
+global $CFG;
+$CFG['start_time']	= microtime(1);//开始运行时间
+$CFG['db']['count']	= 				//数据库操作总数
+	$CFG['db']['select']['totle'] =	//数据库查找总数
+	$CFG['db']['select']['error'] =	//数据库查找出错总数
+	$CFG['db']['insert']['totle'] =	//数据库插入总数
+	$CFG['db']['insert']['error'] =	//数据库插入出错总数
+	$CFG['db']['update']['totle'] =	//数据库更新总数
+	$CFG['db']['update']['error'] =	//数据库更新出错总数
+	$CFG['db']['delete']['totle'] =	//数据库删除总数
+	$CFG['db']['delete']['error'] = 0;	//数据库删除出错总数
+isset( $CFG['template']['tag_left'] ) or $CFG['template']['tag_left'] = '<!--#';		/* 模版标签，编译后替换为：<?php */
+isset( $CFG['template']['tag_right'] ) or $CFG['template']['tag_right'] = '#-->';	/* 模版标签，编译后替换为：?> 	*/
+
+//定义关键文件夹的绝对路径,提高include文件效率
+defined('MPHP_PATH') or define('MPHP_PATH',						__DIR__.'/');	//框架根目录
+defined('CACHE_PATH') or define('CACHE_PATH',						INDEX_PATH.'cache/');				//缓存目录
+defined('CACHE_HTML_PATH') or define('CACHE_HTML_PATH',		CACHE_PATH.'html/');				//html缓存目录
+defined('TPL_C_PATH') or define('TPL_C_PATH',							CACHE_PATH.'tpl_c/');				//模版编译目录
+defined('CONTROLLERS_ADMIN') or define('CONTROLLERS_ADMIN',	INDEX_PATH.'admin/libs/controllers/');	//控制器目录
+defined('CONTROLLERS_PATH') or define('CONTROLLERS_PATH',		INDEX_PATH.'libs/controllers/');	//控制器目录
+defined('MODELS_PATH') or define('MODELS_PATH',					INDEX_PATH.'libs/models/');		//model目录
+defined('DAOS_PATH') or define('DAOS_PATH',						INDEX_PATH.'libs/daos/');			//dao目录
+defined('SERVICES_PATH') or define('SERVICES_PATH',					INDEX_PATH.'libs/services/');		//services目录
+defined('TPL_PATH') or define('TPL_PATH',								INDEX_PATH.'libs/tpl/');			//模版目录
+defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
+defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
+
+defined('STATIC_URL') or define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}/static/");//静态目录 URL
+defined('JS_URL') or define('JS_URL',				STATIC_URL.'js/');	//js脚本 URL
+defined('CSS_URL') or define('CSS_URL',			STATIC_URL.'css/');	//样式 URL
+defined('IMAGES_URL') or define('IMAGES_URL',	STATIC_URL.'images/');//图片 URL
+
+define('MODELS_MPHP'			,MPHP_PATH.'models/');
+
 //核心类
 class mPHP {
 	public static $mPHP = false;
@@ -17,32 +52,21 @@ class mPHP {
 	private function __construct() {
 		if(!self::$view) self::$view = new view();
 		if(!self::$debug) self::$debug = isset($GLOBALS['CFG']['debug']) ? $GLOBALS['CFG']['debug'] : true;
-		spl_autoload_register('self::autoload');
+		spl_autoload_register('self::autoLoader');
 	}
 	
 	public function run() {
 		safe::safeGPC();
 		router::init();
 
-		$controller = isset($_GET['c']) ? "{$_GET['c']}Controller" : 'indexController';
+		$controller	= isset($_GET['c']) ? "{$_GET['c']}Controller" : 'indexController';
 		$action		= isset($_GET['a']) ? "{$_GET['a']}Action"  : 'indexAction';
 
 		if( method_exists($controller,$action) ) {
 			$controller = new $controller;
 			call_user_func(array($controller,$action));
 		} else {
-			if( self::$debug ) {
-				self::$view->data['title'] = 'Action不存在！';
-				self::$view->data['msg'] = "{$action} 未定义!";
-				self::$view->loadTpl('error');
-			} else {
-				//action 未定义
-				if( self::$swoole ) {
-					if( !self::_exit() ) function_exists('goto_503') ? goto_503() : self::status(503);
-				} else {
-					function_exists('goto_503') ? goto_503() : self::status(503);
-				}
-			}
+			self::error('Action不存在！', "{$action} 未定义!");
 			self::_exit();
 		}
 	}
@@ -50,49 +74,28 @@ class mPHP {
 	/*
 	功能：$obj = new newClass();	//自动加载特定的php文件，省去繁琐的include
 	*/
-	public static function autoload($className) {
+	public static function autoLoader($className) {
 		$file = strtr($className,array('\\' => '/')) . '.php';
 
 		if( substr($file,-14) == 'Controller.php' ) {
 			if( is_file(CONTROLLERS_PATH.$file) ) {
 				include CONTROLLERS_PATH.$file;
 			} else {
-				if( self::$debug ) {
-					self::status(503);
-					self::$view->data['title'] = '控制器不存在！';
-					self::$view->data['msg'] = "{$file} 不存在!";
-					self::$view->loadTpl('error');
-				} else {
-					function_exists('goto_404') ? goto_404() : self::status(404);
-				}
+				self::error('控制器不存在！', "{$file} 不存在!");
 				self::_exit();
 			}
 		} elseif(substr($file,-11) == 'Service.php') {
 			if( is_file(SERVICES_PATH.$file) ) {
 				include SERVICES_PATH.$file;
 			} else {
-				if( self::$debug ) {
-					self::status(503);
-					self::$view->data['title'] = 'service模块不存在！';
-					self::$view->data['msg'] = "{$file} 不存在!";
-					self::$view->loadTpl('error');
-				} else {
-					function_exists('goto_404') ? goto_404() : self::status(404);
-				}
+				self::error('service模块不存在！', "{$file} 不存在!");
 				self::_exit();
 			}
 		} elseif(substr($file,-7) == 'Dao.php') {
 			if( is_file(DAOS_PATH.$file) ) {
 				include DAOS_PATH.$file;
 			} else {
-				if( self::$debug ) {
-					self::status(503);
-					self::$view->data['title'] = 'dao模块不存在！';
-					self::$view->data['msg'] = "{$file} 不存在!";
-					self::$view->loadTpl('error');
-				} else {
-					function_exists('goto_404') ? goto_404() : self::status(404);
-				}
+				self::error('dao模块不存在！', "{$file} 不存在!");
 				self::_exit();
 			}
 		} elseif( substr($file,-9) == 'Model.php' ) {
@@ -101,29 +104,27 @@ class mPHP {
 			} elseif( is_file(MODELS_PATH.$file) ) {
 				include MODELS_PATH.$file;
 			} else {
-				if( self::$debug ) {
-					self::status(503);
-					self::$view->data['title'] = 'Model模块不存在！';
-					self::$view->data['msg'] = "{$file} 不存在!";
-					self::$view->loadTpl('error');
-				} else {
-					function_exists('goto_404') ? goto_404() : self::status(404);
-				}
+				self::error('Model模块不存在！', "{$file} 不存在!");
 				self::_exit();
 			}
 		} elseif( is_file(INDEX_PATH.'libs/exts/class/'.$file) ) {
 			include INDEX_PATH.'libs/exts/class/'.$file;//加载外部引用类
 		} else {
-			if( self::$debug ) {
-				self::status(503);
-				self::$view->data['title'] = '访问错误！';
-				self::$view->data['msg'] = "未定义操作 $file";
-				self::$view->loadTpl('error');
-			} else {
-				function_exists('goto_404') ? goto_404() : self::status(404);
-			}
+			self::error('访问错误！', "未定义操作 $file");
 			self::_exit();
 		}
+	}
+
+	public static function error($title = '',$msg = '') {
+		if( self::$debug ) {
+			self::status(503);
+			self::$view->data['title'] = $title;
+			self::$view->data['msg'] = $msg;
+			self::$view->loadTpl('error');
+		} else {
+			function_exists('goto_404') ? goto_404() : self::status(404);
+		}
+		self::_exit();
 	}
 
 	//同一个文件，只加载一次
@@ -141,7 +142,7 @@ class mPHP {
 			if( self::$exit ) {
 				return true;
 			} else {
-				self::$exit = 1;
+				self::$exit = true;
 				return false;
 			}
 		} else {
