@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 创建时间:2012-03-01
-最后更新时间:2015-07-02
+最后更新时间:2015-07-05
 */
 
 global $CFG;
@@ -33,10 +33,12 @@ defined('TPL_PATH') or define('TPL_PATH',								INDEX_PATH.'libs/tpl/');			//�
 defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 
-defined('STATIC_URL') or define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}/static/");//静态目录 URL
-defined('JS_URL') or define('JS_URL',				STATIC_URL.'js/');	//js脚本 URL
-defined('CSS_URL') or define('CSS_URL',			STATIC_URL.'css/');	//样式 URL
-defined('IMAGES_URL') or define('IMAGES_URL',	STATIC_URL.'images/');//图片 URL
+if( !defined('STATIC_URL') && isset($_SERVER['SERVER_NAME']) ) {
+	define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}/static/");//静态目录 URL
+	defined('JS_URL') or define('JS_URL',				STATIC_URL.'js/');	//js脚本 URL
+	defined('CSS_URL') or define('CSS_URL',			STATIC_URL.'css/');	//样式 URL
+	defined('IMAGES_URL') or define('IMAGES_URL',	STATIC_URL.'images/');//图片 URL
+}
 
 define('MODELS_MPHP'			,MPHP_PATH.'models/');
 
@@ -66,7 +68,7 @@ class mPHP {
 			$controller = new $controller;
 			call_user_func(array($controller,$action));
 		} else {
-			self::error('Action不存在！', "{$action} 未定义!");
+			self::error('Action不存在！', "c={$controller} a={$action} 未定义!");
 			self::_exit();
 		}
 	}
@@ -317,7 +319,7 @@ class router {
 			if( !empty($CFG['router']) ) {
 				$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
 				$config = $CFG['router'];
-				
+
 				if( isset($config[$first_param])) {
 					foreach ($config[$first_param] as $v) {
 						$count = 0; //记录成功替换的个数
