@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title><!--# echo $title;#--></title>
+<style type="text/css">
+body {background-color:	#fff; margin:40px;font-family: Consolas, Verdana, Arial, sans-serif;}
+#content {border: 1px solid #E1E1E1;background-color:	#E8F3FF;padding:20px 20px 12px 20px;}
+h1{font-weight:normal;font-size:22px;color:#8000ff;margin:0 0 4px 0;}
+p{color:#000;font-size:13px;}
+#redirect{color:#999;}
+</style>
+</head>
+<body>
+<div id="content">
+<h1>foreach遍历$this->data数组</h1>
+<!--#
+foreach( $this->data as $key => $row) {
+	echo $key,':',$row,'<br>';
+}
+echo '<br>';
+#-->
+
+<h1>$this->data['key']方式打印变量</h1>
+<!--#
+echo $this->data['h'],'<br>';
+echo $this->data['w'],'<br>';
+echo '<br>';
+#-->
+
+<h1>使用mPHP根据key生成的变量</h1>
+<?php
+echo $h,'<br>';
+echo $w,'<br>';
+?>
+
+<br>
+模版中可以使用默认的PHP标签：&lt;?php echo time(); ?&gt;<br><br>
+也可以使用mPHP定义的标签： &lt;!--# echo time(); #--&gt;<br><br>
+或者自己定义的标签，视图类会自动转换成原生PHP形式：&lt;?php echo time(); ?&gt;<br><br>
+&lt;!--# echo time(); #--&gt标签设计的初衷：PHP原生标签会导致部分编辑器无法正常解析html代码，可能会影响前端开发人员的编码心情<br>
+</div>
+</body>
+</html>
