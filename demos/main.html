@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>mPHP演示示例</title>
+<link rel='stylesheet' type='text/css' href='static/css/common.css'>
+<style>
+.indent{text-indent:2em;text-align:left;}
+</style>
+</head>
+<body>
+	<div style="margin:10px;">
+		<h1>mPHP简单PHP开发 for You ！</h1>
+		<p><strong>写在前面：</strong><br></p>
+		<p class="indent">从2011年开始，我所了解到的PHP开发框架就已经很多了，对于一个PHP初学者而言，很难抉择。</p>
+		<p class="indent">而且每一种框架，或多或少又掺杂了框架作者自己的风格，这让原本简洁、高效的PHP变得过于复杂。</p>
+		<p class="indent">2012年，接触了<a href="http://www.douban.com/group/ephp" target="_blank">ePHP框架</a>，对框架有了一定的了解，为了深入学习MVC框架，就开始尝试自己写一个PHP框架。</p>
+		<div>
+			<strong>主要特性如下：</strong>
+			<ul>
+				<li>基于MVC思想构建</li>
+				<li>超低耦合</li>
+				<li>不强制命名规范</li>
+				<li>超简单扩展第三发类</li>
+				<li>常用方法集成</li>
+				<li>支持<a href="http://www.swoole.com" target="_blank">swoole拓展</a></li>
+			</ul>
+		</div>
+
+		<div>
+			<strong>性能测试：</strong>
+			<ul>
+				<li>原生PHP代码index.php：
+					<div>
+						<code>
+							<span style="color: #000000">
+								<span style="color: #0000BB">&lt;?php<br></span><span style="color: #007700">class&nbsp;</span><span style="color: #0000BB">test&nbsp;</span><span style="color: #007700">{<br>&nbsp;&nbsp;&nbsp;&nbsp;public&nbsp;function&nbsp;</span><span style="color: #0000BB">hi</span><span style="color: #007700">()&nbsp;{<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;</span><span style="color: #DD0000">'hello&nbsp;world'</span><span style="color: #007700">;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>}<br><br></span><span style="color: #0000BB">$obj&nbsp;</span><span style="color: #007700">=&nbsp;new&nbsp;</span><span style="color: #0000BB">test</span><span style="color: #007700">();<br><br></span><span style="color: #0000BB">$obj</span><span style="color: #007700">-&gt;</span><span style="color: #0000BB">hi</span><span style="color: #007700">();<br>
+							</span>
+						</code>
+					</div>
+				</li>
+				<li>mPHP框架
+					<ul>
+						<li>
+							入口文件index.php：
+							<div>
+								<code>
+									<span style="color: #000000">
+										<span style="color: #0000BB">&lt;?php<br>define</span><span style="color: #007700">(</span><span style="color: #DD0000">'INIT_MPHP'</span><span style="color: #007700">,</span><span style="color: #DD0000">'mo2g.com'</span><span style="color: #007700">);</span><span style="color: #FF8000">//常量值可以随便定义<br></span><span style="color: #0000BB">define</span><span style="color: #007700">(</span><span style="color: #DD0000">'INDEX_PATH'</span><span style="color: #007700">,&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color: #0000BB">__DIR__</span><span style="color: #007700">.</span><span style="color: #DD0000">'/'</span><span style="color: #007700">);<br></span><span style="color: #0000BB">define</span><span style="color: #007700">(</span><span style="color: #DD0000">'MPHP_PATH'</span><span style="color: #007700">,&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color: #0000BB">realpath</span><span style="color: #007700">(</span><span style="color: #0000BB">INDEX_PATH</span><span style="color: #007700">.</span><span style="color: #DD0000">'../../'</span><span style="color: #007700">).</span><span style="color: #DD0000">'/'</span><span style="color: #007700">);&nbsp;&nbsp;&nbsp;&nbsp;</span><span style="color: #FF8000">//框架根目录<br><br></span><span style="color: #007700">include&nbsp;</span><span style="color: #0000BB">MPHP_PATH&nbsp;</span><span style="color: #007700">.&nbsp;</span><span style="color: #DD0000">'mPHP.php'</span><span style="color: #007700">;<br></span><span style="color: #0000BB">$mPHP&nbsp;</span><span style="color: #007700">=&nbsp;</span><span style="color: #0000BB">mPHP</span><span style="color: #007700">::</span><span style="color: #0000BB">init</span><span style="color: #007700">();<br></span><span style="color: #0000BB">$mPHP&nbsp;</span><span style="color: #007700">-&gt;&nbsp;</span><span style="color: #0000BB">run</span><span style="color: #007700">();<br></span>
+									</span>
+								</code>
+							</div>
+						</li>
+						<li>
+							控制器代码indexController.php：
+							<div>
+								<code>
+									<span style="color: #000000">
+										<span style="color: #0000BB">&lt;?php<br></span><span style="color: #007700">class&nbsp;</span><span style="color: #0000BB">indexController&nbsp;</span><span style="color: #007700">{<br>&nbsp;&nbsp;&nbsp;&nbsp;public&nbsp;function&nbsp;</span><span style="color: #0000BB">indexAction</span><span style="color: #007700">()&nbsp;{<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;echo&nbsp;</span><span style="color: #DD0000">'hello&nbsp;world'</span><span style="color: #007700">;<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>}<br></span>
+									</span>
+								</code>
+							</div>
+						</li>
+					</ul>
+				</li>
+			</ul>
+			<ul>
+				<li>
+					ab -n 1000
+					<div>
+						<ul>
+							<li>原生PHP + fpm：Requests per second:    2037.52 [#/sec] (mean)</li>
+							<li>mPHP + fpm ：Requests per second:    757.23 [#/sec] (mean)</li>
+							<li>mPHP + swoole ：Requests per second:    2940.05 [#/sec] (mean)</li>
+						</ul>
+					</div>
+				</li>
+				<li>ab -c 100 -n 1000
+					<div>
+						<ul>
+							<li>原生PHP + fpm：Requests per second:    4125.48 [#/sec] (mean)</li>
+							<li>mPHP + fpm：Requests per second:    1282.61 [#/sec] (mean)</li>
+							<li>mPHP + swoole ：Requests per second:    8397.43 [#/sec] (mean)</li>
+						</ul>
+					</div>
+				</li>
+			</ul>
+		</div>
+	</div>
+</body>
+</html>
