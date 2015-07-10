@@ -9,16 +9,16 @@
 //使用示例:
 //run_info(__FILE__,__LINE__,1);
 function run_info($file = __FILE__,$line = __LINE__,$true = false) {
-	echo "<div style='display:none'><br>程序运行至文件 $file ,第 $line 行共消耗",(microtime(1) - $GLOBALS['CFG']['start_time']) * 1000,'ms；<br>';
+	echo "<div style='display:none'><br>程序运行至文件 $file ,第 $line 行共消耗",(microtime(1) - mPHP::$CFG['start_time']) * 1000,'ms；<br>';
 	if($true) {
-		$intSelectTotle = $GLOBALS['CFG']['db']['select']['totle'];
-		$intSelectError = $GLOBALS['CFG']['db']['select']['error'];
-		$intInsertTotle = $GLOBALS['CFG']['db']['insert']['totle'];
-		$intInsertError = $GLOBALS['CFG']['db']['insert']['error'];
-		$intUpdateTotle = $GLOBALS['CFG']['db']['update']['totle'];
-		$intUpdateError = $GLOBALS['CFG']['db']['update']['error'];
-		$intDeleteTotle = $GLOBALS['CFG']['db']['delete']['totle'];
-		$intDeleteError = $GLOBALS['CFG']['db']['delete']['error'];
+		$intSelectTotle = mPHP::$CFG['db']['select']['totle'];
+		$intSelectError = mPHP::$CFG['db']['select']['error'];
+		$intInsertTotle = mPHP::$CFG['db']['insert']['totle'];
+		$intInsertError = mPHP::$CFG['db']['insert']['error'];
+		$intUpdateTotle = mPHP::$CFG['db']['update']['totle'];
+		$intUpdateError = mPHP::$CFG['db']['update']['error'];
+		$intDeleteTotle = mPHP::$CFG['db']['delete']['totle'];
+		$intDeleteError = mPHP::$CFG['db']['delete']['error'];
 		$intTotle = $intSelectTotle + $intInsertTotle + $intUpdateTotle + $intDeleteTotle;
 		echo '<br><table width="300px">',
 				'<caption>数据库操作共',$intTotle,'次</caption>',
@@ -111,7 +111,7 @@ article/view/1/1.html
 function U($strUrl = '',$true = true) {
 	$arrGet = $arrVal =  $arrData =  array();
 	$intDepth = 0;
-	$intDepthMax = $GLOBALS['CFG']['url_depth'];
+	$intDepthMax = mPHP::$CFG['url_depth'];
 	
 	if( $strUrl === '' ) return $_GET['c'] == 'blog' ? BLOG_URL : INDEX_URL;
 	
@@ -130,8 +130,8 @@ function U($strUrl = '',$true = true) {
 		$url = INDEX_URL;
 	}
 	
-	if($GLOBALS['CFG']['url_type'] == 'DIR') $flag = '/';
-	elseif($GLOBALS['CFG']['url_type'] == 'NODIR') $flag = '-';
+	if(mPHP::$CFG['url_type'] == 'DIR') $flag = '/';
+	elseif(mPHP::$CFG['url_type'] == 'NODIR') $flag = '-';
 	else {
 		if($strUrl[0] != '?') $strUrl = "{$url}?{$strUrl}";
 		return $strUrl;
@@ -154,7 +154,7 @@ function U($strUrl = '',$true = true) {
 	}
 	
 	$strUrl =  $url.trim($strUrl,'/-');
-	if($true)$strUrl .= $GLOBALS['CFG']['url_suffix'];
+	if($true)$strUrl .= mPHP::$CFG['url_suffix'];
 	
 	return $strUrl;
 }
@@ -219,7 +219,7 @@ function file_merger($arrFile,$out,$cache=false) {
 	}
 
 	//调试模式,按常规加载js,css
-	if( $GLOBALS['CFG']['debug'] ) {
+	if( mPHP::$debug ) {
 		$out = '';
 		foreach($arrFile as $key => $file) {
 			if( $type == 'js' ) {
@@ -253,7 +253,7 @@ function file_merger($arrFile,$out,$cache=false) {
 	} else {
 		$flag = 1;
 	}
-	
+
 	if( $flag ) {
 		//当文件不存在,或者子文件被修改,就执行下边的程序
 		//正式环境启动压缩
@@ -264,9 +264,11 @@ function file_merger($arrFile,$out,$cache=false) {
 		$str = ob_get_clean();
 		
 		$tmp = $dir. 'tmp';
-		
-		if($GLOBALS['CFG']['java']) {
-		//java程序精简文件
+		if( !file_exists($dir) ) mkdir($dir,0755,true);
+
+		if(mPHP::$CFG['java'] && file_exists(STATIC_PATH.'yuicompressor-2.4.8.jar') ) {
+			//需要下载yuicompressor-2.4.8.jar放置STATIC_PATH目录中
+			//java程序精简文件
 			file_put_contents($tmp,$str);
 			//文档地址：http://yui.github.io/yuicompressor/
 			if( $type == 'js' ) {
@@ -277,8 +279,8 @@ function file_merger($arrFile,$out,$cache=false) {
 			}
 			`$exec` ;
 		} else {
-		//php程序精简文件
-		//测试阶段
+			//php程序精简文件
+			//测试阶段
 			$str = preg_replace( '#/\*.+?\*/#s','', $str );//过滤注释 /* */
 			$str = preg_replace( '#(?<!http:)(?<!\\\\)(?<!\')(?<!")//(?<!\')(?<!").*\n#','', $str );//过滤注释 //
 			$str = preg_replace( '#[\n\r\t]+#',' ', $str );//回车 tab替换成空格
@@ -301,8 +303,8 @@ function mini_html($html) {
 			$str = preg_replace( '#(?<!:)(?<!\\\\)(?<!\')(?<!")//(?<!\')(?<!").*\n#','', $str );//过滤脚本注释 //
 			$str = preg_replace( '#<!--[^\[<>].*[^\]!]-->#sU', '', $str );//移除html注释 <!-- --> 
 			$str = preg_replace( '#[\n\r\t]+#', ' ', $str );//空格替换回车或tab
+			$str = preg_replace( '#>\s*<#', '><', $str );//移除标签间的空白
 			$str = preg_replace( '#\s{2,}#', ' ', $str );//多个空格合并为一个空格
-			$str = preg_replace( '#>\s<#', '><', $str );//移除标签间的空白
 		}
 		$html .= $str;
 	}

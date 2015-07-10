@@ -34,7 +34,8 @@ defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				/
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 
 if( !defined('STATIC_URL') && isset($_SERVER['SERVER_NAME']) ) {
-	define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}/static/");//静态目录 URL
+	$dir = isset( $_SERVER['SCRIPT_NAME'] ) ? dirname($_SERVER['SCRIPT_NAME']) : isset( $_SERVER['REQUEST_URI'] ) ? dirname($_SERVER['REQUEST_URI']) : dirname($_SERVER['DOCUMENT_URI']);
+	define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}{$dir}/static/");//静态目录 URL
 	defined('JS_URL') or define('JS_URL',				STATIC_URL.'js/');	//js脚本 URL
 	defined('CSS_URL') or define('CSS_URL',			STATIC_URL.'css/');	//样式 URL
 	defined('IMAGES_URL') or define('IMAGES_URL',	STATIC_URL.'images/');//图片 URL
@@ -45,6 +46,7 @@ define('MODELS_MPHP'			,MPHP_PATH.'models/');
 //核心类
 class mPHP {
 	public static $mPHP = false;
+	public static $CFG = false;
 	public static $swoole = false;
 	public static $debug = false;
 	public static $view = false;
@@ -53,7 +55,9 @@ class mPHP {
 	
 	private function __construct() {
 		if(!self::$view) self::$view = new view();
-		if(!self::$debug) self::$debug = isset($GLOBALS['CFG']['debug']) ? $GLOBALS['CFG']['debug'] : true;
+		if(!self::$CFG) self::$CFG = $GLOBALS['CFG'];
+		if(!self::$debug) self::$debug = isset(self::$CFG['debug']) ? self::$CFG['debug'] : true;
+
 		spl_autoload_register('self::autoLoader');
 	}
 	
@@ -273,7 +277,7 @@ class mPHP {
 			file_put_contents(STATIC_PATH.'index.html','');
 			file_put_contents(STATIC_PATH.'merger/index.html','');
 		}
-		foreach($GLOBALS['CFG']['main_dir'] as $dir) {
+		foreach(mPHP::$CFG['main_dir'] as $dir) {
 			directoryModel::createDirs($dir['path'],$dir['totle']);
 		}
 	}
@@ -358,7 +362,7 @@ class dao {
 	
 	public function __construct() {
 		if(!self::$db) self::$db = db::init();
-		if(!self::$table_prefix) self::$table_prefix = $GLOBALS['CFG']['table_prefix'];
+		if(!self::$table_prefix) self::$table_prefix = mPHP::$CFG['table_prefix'];
 	}
 }
 
@@ -366,7 +370,7 @@ class db {
 	public static $db = array();
 
 	public static function init($name = 'master') {
-		if( empty(self::$db[$name]) ) self::$db[$name] = new pdoModel($GLOBALS['CFG']['pdo']);
+		if( empty(self::$db[$name]) ) self::$db[$name] = new pdoModel(mPHP::$CFG['pdo']);
 		return self::$db[$name];
 	}
 }
@@ -418,7 +422,7 @@ class view {
 		//处理include标签
 		$str = preg_replace( "/<!--#\s*layout\s*:\s*([^ ]+);*\s*#-->/", '<?php $this->_include(\'\\1\') ?>', $str );
 		/*替换<!--# #-->标签为<?php ?>*/
-		$str = strtr($str,array($GLOBALS['CFG']['template']['tag_left'] => '<?php ', $GLOBALS['CFG']['template']['tag_right'] => ' ?>'));
+		$str = strtr($str,array(mPHP::$CFG['template']['tag_left'] => '<?php ', mPHP::$CFG['template']['tag_right'] => ' ?>'));
 		return $str;
 	}
 	
@@ -426,28 +430,31 @@ class view {
 	public function merger($str) {
 		$root = U();
 		$arrMergerCss = $arrMergerJs = array();
-		$script = "#<script.*src=['\"](/.+\.js)['\"].*></script>#";
-		$style	= "#<link.*href=['\"](/[^'\"]+\.css[^'\"]*)['\"].*>#";
+		$script = "#<script.*src=['\"](/?.+\.js)['\"].*></script>#";
+		$style	= "#<link.*href=['\"](/?[^'\"]+\.css[^'\"]*)['\"].*>#";
 		preg_match_all($style,$str,$arrStyle);
 		$str = preg_replace($style,'',$str);
 		preg_match_all($script,$str,$arrScript);
 		$str = preg_replace($script,'',$str);
+
 		foreach( $arrStyle[1] as &$row) {
-			if( $row[0] == '/' ) {
+			if( substr($row,0,7) != 'http://' || substr($row,0,8) != 'https://' ) {
 				$row = strtr( $row,array($root=>'') );
 				$arrMergerCss[] = $row;
 			}
 		}
 		foreach( $arrScript[1] as &$row) {
-			if( $row[0] == '/' ) {
+			if( substr($row,0,7) != 'http://' || substr($row,0,8) != 'https://' ) {
 				$row = strtr( $row,array($root=>'') );
 				$arrMergerJs[] = $row;
 			}
 		}
 		$css = file_merger($arrMergerCss,crc32(implode($arrMergerCss,'')).'.css');
 		$js = file_merger($arrMergerJs,crc32(implode($arrMergerJs,'')).'.js');
-		$str = strtr( $str,array('<link />'=>$css) );
-		$str = strtr( $str,array('<script></script>'=>$js) );
+		// $str = strtr( $str,array('<link/>'=>$css,'<link />'=>$css) );
+		// $str = strtr( $str,array('<script></script>'=>$js) );
+		$str = preg_replace('#<link\s*/>#', $css, $str,1);
+		$str = preg_replace('#<script\s*>\s*</script>#', $js, $str,1);
 		return $str;
 	}
 	
@@ -474,19 +481,21 @@ class view {
 			if( file_exists($tpl_file) ) {
 				$html = file_get_contents($tpl_file);
 			} elseif( file_exists(TPL_MPHP_PATH."{$tpl}.tpl.html") ) {
-				$html = file_get_contents(TPL_MPHP_PATH."{$tpl}.tpl.html");
+				$tpl_file = TPL_MPHP_PATH."{$tpl}.tpl.html";
+				$html = file_get_contents($tpl_file);
 			} else {
 				$flag = false;
 				$title = '模版文件不存在';
 				$msg = "$tpl_file";
-				$html = file_get_contents(TPL_MPHP_PATH."error.tpl.html");
+				$tpl_file = TPL_MPHP_PATH."error.tpl.html";
+				$html = file_get_contents($tpl_file);
 			}
 			$html = '<?php if(!defined("INIT_MPHP"))exit;?>' . $this->tplCompile($html);//替换标签
-			file_exists(TPL_C_PATH) or mkdir(TPL_C_PATH,0755,true);
+			file_exists(dirname ($tpl_c_file)) or mkdir(dirname ($tpl_c_file),0755,true);
 			file_put_contents($tpl_c_file,$html);
 			if( $flag ) touch($tpl_c_file,filemtime($tpl_file));//编译文件与模版文件同步修改时间
 		}
-		
+
 		//php文件 转译 静态html
 		ob_start();
 		include $tpl_c_file;

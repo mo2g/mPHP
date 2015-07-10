@@ -1,5 +1,5 @@
 <?php
-class mini_htmlController {
+class view_mini_htmlController {
 	public function indexAction() {
 		//调试状态关闭缓存功能，默认为调试状态。0：非调试状态 1：调试状态
 		//在初始化mPHP前，可以通过配置$GLOBALS['CFG']['debug']来设定
