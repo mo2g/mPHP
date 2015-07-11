@@ -172,7 +172,7 @@ class emailModel {
 			return true;
 		} else {
 			echo $strInfo;
-			fclose($this->fp);
+			if( $this->fp ) fclose($this->fp);
 			exit;
 		}
 	}

@@ -25,11 +25,12 @@ defined('CACHE_PATH') or define('CACHE_PATH',						INDEX_PATH.'cache/');				//�
 defined('CACHE_HTML_PATH') or define('CACHE_HTML_PATH',		CACHE_PATH.'html/');				//html缓存目录
 defined('TPL_C_PATH') or define('TPL_C_PATH',							CACHE_PATH.'tpl_c/');				//模版编译目录
 defined('CONTROLLERS_ADMIN') or define('CONTROLLERS_ADMIN',	INDEX_PATH.'admin/libs/controllers/');	//控制器目录
-defined('CONTROLLERS_PATH') or define('CONTROLLERS_PATH',		INDEX_PATH.'libs/controllers/');	//控制器目录
-defined('MODELS_PATH') or define('MODELS_PATH',					INDEX_PATH.'libs/models/');		//model目录
-defined('DAOS_PATH') or define('DAOS_PATH',						INDEX_PATH.'libs/daos/');			//dao目录
-defined('SERVICES_PATH') or define('SERVICES_PATH',					INDEX_PATH.'libs/services/');		//services目录
-defined('TPL_PATH') or define('TPL_PATH',								INDEX_PATH.'libs/tpl/');			//模版目录
+defined('LIBS_PATH') or define('LIBS_PATH',							INDEX_PATH.'libs/');		//库目录
+defined('CONTROLLERS_PATH') or define('CONTROLLERS_PATH',		LIBS_PATH.'controllers/');	//控制器目录
+defined('MODELS_PATH') or define('MODELS_PATH',					LIBS_PATH.'models/');		//model目录
+defined('DAOS_PATH') or define('DAOS_PATH',						LIBS_PATH.'daos/');			//dao目录
+defined('SERVICES_PATH') or define('SERVICES_PATH',					LIBS_PATH.'services/');		//services目录
+defined('TPL_PATH') or define('TPL_PATH',								LIBS_PATH.'tpl/');			//模版目录
 defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 

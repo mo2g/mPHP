@@ -230,9 +230,10 @@ function file_merger($arrFile,$out,$cache=false) {
 		}
 		return $out;
 	}
-	
+
+	//判断是否有文件被修改
+	// $flag：0:没有文件被修改;	1:有文件被修改
 	if( file_exists($out) ) {
-		//判断是否有文件被修改
 		$cacheFile = M('cacheFile');
 		if( $type == 'js' ) {
 			$cacheFile->in('js');
@@ -240,7 +241,7 @@ function file_merger($arrFile,$out,$cache=false) {
 			$cacheFile->in('css');
 		}
 		$arrTime = $cacheFile->get_all();
-		$flag = 0;//0:没有文件被修改;1:有文件被修改
+		$flag = 0;
 		foreach($arrFile as $file) {
 			$key = strtr($file,'.',',');
 			$time = $arrTime[$key];//缓存的最后更新时间
@@ -266,16 +267,20 @@ function file_merger($arrFile,$out,$cache=false) {
 		$tmp = $dir. 'tmp';
 		if( !file_exists($dir) ) mkdir($dir,0755,true);
 
-		if(mPHP::$CFG['java'] && file_exists(STATIC_PATH.'yuicompressor-2.4.8.jar') ) {
-			//需要下载yuicompressor-2.4.8.jar放置STATIC_PATH目录中
+		if( !isset(mPHP::$CFG['yuicompressor']) ) {
+			mPHP::$CFG['yuicompressor'] = LIBS_PATH.'yuicompressor-2.4.8.jar';
+		}
+		
+		if(mPHP::$CFG['java'] && file_exists(mPHP::$CFG['yuicompressor']) ) {
 			//java程序精简文件
-			file_put_contents($tmp,$str);
+			//需要下载yuicompressor-2.4.8.jar，默认放置LIBS_PATH目录中
 			//文档地址：http://yui.github.io/yuicompressor/
+			file_put_contents($tmp,$str);
 			if( $type == 'js' ) {
-				$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type js --charset utf-8 $tmp -o $out";//压缩JS
+				$exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
 			} elseif( $type == 'css' ) {
 				//$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
-				$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 $tmp -o $out";//压缩CSS
+				$exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS
 			}
 			`$exec` ;
 		} else {

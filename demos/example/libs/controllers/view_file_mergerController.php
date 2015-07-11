@@ -8,9 +8,9 @@ class view_file_mergerController {
 
 		//默认值为0：使用PHP正则表达式压缩代码
 		// 1：java环境启用yuicompressor压缩
-		// 如果环境支持java，可以下载yuicompressor-2.4.8.jar放置STATIC_PATH目录中
+		// 如果环境支持java，可以下载yuicompressor-2.4.8.jar放置LIBS_PATH目录中
 		// 文档地址：http://yui.github.io/yuicompressor/
-		mPHP::$CFG['java'] = 0;
+		mPHP::$CFG['java'] = 1;
 
 		//初始化阶段mPHP已经声明了视图类
 		//mPHP::$view = new view();
