@@ -9,7 +9,7 @@ global $CFG;
 $CFG['start_time']	= microtime(1);//开始运行时间
 $CFG['db']['count']	= 				//数据库操作总数
 	$CFG['db']['select']['totle'] =	//数据库查找总数
-	$CFG['db']['select']['error'] =	//数据库查找出错总数
+	$CFG['db']['select']['error'] =	//数据库查找出错f总数
 	$CFG['db']['insert']['totle'] =	//数据库插入总数
 	$CFG['db']['insert']['error'] =	//数据库插入出错总数
 	$CFG['db']['update']['totle'] =	//数据库更新总数
@@ -25,12 +25,14 @@ defined('CACHE_PATH') or define('CACHE_PATH',						INDEX_PATH.'cache/');				//�
 defined('CACHE_HTML_PATH') or define('CACHE_HTML_PATH',		CACHE_PATH.'html/');				//html缓存目录
 defined('TPL_C_PATH') or define('TPL_C_PATH',							CACHE_PATH.'tpl_c/');				//模版编译目录
 defined('CONTROLLERS_ADMIN') or define('CONTROLLERS_ADMIN',	INDEX_PATH.'admin/libs/controllers/');	//控制器目录
+
 defined('LIBS_PATH') or define('LIBS_PATH',							INDEX_PATH.'libs/');		//库目录
 defined('CONTROLLERS_PATH') or define('CONTROLLERS_PATH',		LIBS_PATH.'controllers/');	//控制器目录
 defined('MODELS_PATH') or define('MODELS_PATH',					LIBS_PATH.'models/');		//model目录
 defined('DAOS_PATH') or define('DAOS_PATH',						LIBS_PATH.'daos/');			//dao目录
 defined('SERVICES_PATH') or define('SERVICES_PATH',					LIBS_PATH.'services/');		//services目录
 defined('TPL_PATH') or define('TPL_PATH',								LIBS_PATH.'tpl/');			//模版目录
+
 defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 
@@ -58,7 +60,6 @@ class mPHP {
 		if(!self::$view) self::$view = new view();
 		if(!self::$CFG) self::$CFG = $GLOBALS['CFG'];
 		if(!self::$debug) self::$debug = isset(self::$CFG['debug']) ? self::$CFG['debug'] : true;
-
 		spl_autoload_register('self::autoLoader');
 	}
 	
@@ -431,13 +432,13 @@ class view {
 	public function merger($str) {
 		$root = U();
 		$arrMergerCss = $arrMergerJs = array();
-		$script = "#<script.*src=['\"](/?.+\.js)['\"].*></script>#";
-		$style	= "#<link.*href=['\"](/?[^'\"]+\.css[^'\"]*)['\"].*>#";
+		$script = "#<script.*src=['\"](((?!(http|https)://))[^'\"]+\.js)['\"].*></script>#";
+		$style	=  "#<link.*href=['\"](((?!(http|https)://))[^'\"]+\.css[^'\"]*)['\"].*>#";
 		preg_match_all($style,$str,$arrStyle);
 		$str = preg_replace($style,'',$str);
 		preg_match_all($script,$str,$arrScript);
 		$str = preg_replace($script,'',$str);
-
+		
 		foreach( $arrStyle[1] as &$row) {
 			if( substr($row,0,7) != 'http://' || substr($row,0,8) != 'https://' ) {
 				$row = strtr( $row,array($root=>'') );

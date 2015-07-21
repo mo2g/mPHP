@@ -110,7 +110,7 @@ class emailModel {
 	public function close() {
 		if( $this->fp != false ) {
 			fputs($this->fp, "QUIT\r\n");
-			fclose($this->fp);
+			if( $this->fp ) fclose($this->fp);
 			$this->fp = false;
 		}
 	}
