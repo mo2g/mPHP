@@ -9,7 +9,7 @@ global $CFG;
 $CFG['start_time']	= microtime(1);//开始运行时间
 $CFG['db']['count']	= 				//数据库操作总数
 	$CFG['db']['select']['totle'] =	//数据库查找总数
-	$CFG['db']['select']['error'] =	//数据库查找出错总数
+	$CFG['db']['select']['error'] =	//数据库查找出错f总数
 	$CFG['db']['insert']['totle'] =	//数据库插入总数
 	$CFG['db']['insert']['error'] =	//数据库插入出错总数
 	$CFG['db']['update']['totle'] =	//数据库更新总数
@@ -25,12 +25,14 @@ defined('CACHE_PATH') or define('CACHE_PATH',						INDEX_PATH.'cache/');				//�
 defined('CACHE_HTML_PATH') or define('CACHE_HTML_PATH',		CACHE_PATH.'html/');				//html缓存目录
 defined('TPL_C_PATH') or define('TPL_C_PATH',							CACHE_PATH.'tpl_c/');				//模版编译目录
 defined('CONTROLLERS_ADMIN') or define('CONTROLLERS_ADMIN',	INDEX_PATH.'admin/libs/controllers/');	//控制器目录
+
 defined('LIBS_PATH') or define('LIBS_PATH',							INDEX_PATH.'libs/');		//库目录
 defined('CONTROLLERS_PATH') or define('CONTROLLERS_PATH',		LIBS_PATH.'controllers/');	//控制器目录
 defined('MODELS_PATH') or define('MODELS_PATH',					LIBS_PATH.'models/');		//model目录
 defined('DAOS_PATH') or define('DAOS_PATH',						LIBS_PATH.'daos/');			//dao目录
 defined('SERVICES_PATH') or define('SERVICES_PATH',					LIBS_PATH.'services/');		//services目录
 defined('TPL_PATH') or define('TPL_PATH',								LIBS_PATH.'tpl/');			//模版目录
+
 defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 
@@ -52,20 +54,21 @@ class mPHP {
 	public static $debug = false;
 	public static $view = false;
 	public static $exit = false;
+	public static $is_mobile = false;
 	public static $include_file_lists = array();
 	
 	private function __construct() {
 		if(!self::$view) self::$view = new view();
 		if(!self::$CFG) self::$CFG = $GLOBALS['CFG'];
 		if(!self::$debug) self::$debug = isset(self::$CFG['debug']) ? self::$CFG['debug'] : true;
-
 		spl_autoload_register('self::autoLoader');
+		router::init();
 	}
 	
 	public function run() {
 		safe::safeGPC();
-		router::init();
-
+		if( router::run() ) return;
+		
 		$controller	= isset($_GET['c']) ? "{$_GET['c']}Controller" : 'indexController';
 		$action		= isset($_GET['a']) ? "{$_GET['a']}Action"  : 'indexAction';
 
@@ -140,7 +143,7 @@ class mPHP {
 	}
 
 	/*
-	swoole中不允许试用exit，所以使用如下方式记录PHP是否执行过  _exit()
+	swoole中不允许使用exit，所以使用如下方式记录PHP是否执行过  _exit()
 	已经执行返回：true
 	没有执行返回：false
 	*/
@@ -226,6 +229,33 @@ class mPHP {
 			}
 		}
 	}
+
+	public static function is_mobile() {
+		$is_mobile = false;
+		$user_agent = $_SERVER['HTTP_USER_AGENT'] ? $_SERVER['HTTP_USER_AGENT'] : $_SERVER['USER-AGENT'];
+		$mobile_agents = Array("240x320","acer","acoon","acs-","abacho","ahong","airness","alcatel",
+		"amoi","android","anywhereyougo.com","applewebkit/525","applewebkit/532","asus","audio","au-mic",
+		"avantogo","becker","benq","bilbo","bird","blackberry","blazer","bleu","cdm-","compal","coolpad",
+		"danger","dbtel","dopod","elaine","eric","etouch","fly ","fly_","fly-","go.web","goodaccess",
+		"gradiente","grundig","haier","hedy","hitachi","htc","huawei","hutchison","inno","ipad","ipaq",
+		"ipod","jbrowser","kddi","kgt","kwc","lenovo",
+		"lg ","lg2","lg3","lg4","lg5","lg7","lg8","lg9","lg-","lge-","lge9",
+		"longcos","maemo","mercator","meridian","micromax","midp","mini","mitsu",
+		"mmm","mmp","mobi","mot-","moto","nec-","netfront","newgen","nexian","nf-browser","nintendo",
+		"nitro","nokia","nook","novarra","obigo","palm","panasonic","pantech","philips","phone","pg-",
+		"playstation","pocket","pt-","qc-","qtek","rover","sagem","sama","samu","sanyo","samsung","sch-",
+		"scooter","sec-","sendo","sgh-","sharp","siemens","sie-","softbank","sony","spice","sprint","spv",
+		"symbian","tablet","talkabout","tcl-","teleca","telit","tianyu","tim-","toshiba","tsm","up.browser",
+		"utec","utstar","verykool","virgin","vk-","voda","voxtel","vx","wap","wellco","wig browser","wii",
+		"windows ce","wireless","xda","xde","zte");
+		foreach($mobile_agents as $device) {
+			if(stristr($user_agent, $device)) {
+				$is_mobile = true;
+				break;
+			}
+		}
+		return $is_mobile;
+	}
 	
 	public static function init() {
 		if( !self::$mPHP ) self::$mPHP = new mPHP();
@@ -295,10 +325,29 @@ class mPHP {
 class router {
 	public static $controller = 'index';
 	public static $action = 'index';
+	public static $path_info = '';
+	public static $table = false;
 
 	public static function init() {
+		if( defined('SWOOLE_DEAMON') ) {
+			$table = new swoole_table(1024);
+			$table->column('ctime', swoole_table::TYPE_INT, 4);	//缓存创建时间戳
+			$table->column('etime', swoole_table::TYPE_INT, 4);	//缓存失效时间戳
+			$table->column('file', swoole_table::TYPE_STRING, 64);	//缓存文件路径
+			$table->create();
+			self::$table = $table;
+		} else {
+			self::$table = new cache\cacheModel('file');
+			self::$table ->in('router');
+		}
+	}
+
+	public static function run() {
 		$mark = ',';
 		$path_info = self::path_info();
+
+		if( $path_info === true ) return true;//已缓存
+
 		$path_info = preg_replace('#^/\w+\.php#', $mark, $path_info);
 		if($path_info == '/') $path_info = $mark;
 
@@ -313,17 +362,36 @@ class router {
 			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
 		}
 		// $_REQUEST = array_merge($_GET, $_REQUEST);
+		return false;//未缓存
 	}
 
 	public static function path_info() {
 		$path_info = '';
 		if( !empty($_SERVER['PATH_INFO']) ) {
-			global $CFG;
-			$path_info = $_SERVER['PATH_INFO'];
+			self::$path_info = $path_info = $_SERVER['PATH_INFO'];
+
+			mPHP::$is_mobile = mPHP::is_mobile();
+
 			//是否开启了路由
-			if( !empty($CFG['router']) ) {
+			if( !empty(mPHP::$CFG['router']) ) {
+				$time = $_SERVER['REQUEST_TIME'];
+
+				//路由缓存逻辑
+				if( !( $_REQUEST['c'] || $_REQUEST['a'] ) && !mPHP::$debug && ( $data = self::get() ) && $data['etime'] > $time && file_exists($data['file']) ) {
+					$createTime = date("D, d M Y H:i:s",$data['ctime']);
+					mPHP::header('Cache-Control','max-age=0');
+					mPHP::header('Last-Modified',$createTime);
+					if( isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $createTime ) {
+						mPHP::status(304);
+					} else {
+						include $data['file'] ;
+					}
+					mPHP::_exit();
+					return true;//相关控制器已缓存
+				}
+
 				$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
-				$config = $CFG['router'];
+				$config = mPHP::$CFG['router'];
 
 				if( isset($config[$first_param])) {
 					foreach ($config[$first_param] as $v) {
@@ -333,12 +401,27 @@ class router {
 					}
 				}
 			}
-			$url_suffix = !empty($CFG['url_suffix']) ? $CFG['url_suffix'] : false;
+			$url_suffix = !empty(mPHP::$CFG['url_suffix']) ? mPHP::$CFG['url_suffix'] : false;
 			if( $url_suffix && $url_suffix != '/' && ($url_suffix_pos = strrpos($path_info, $url_suffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
-			if( $CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
-			unset($CFG);
+			if( mPHP::$CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
 		}
 		return $path_info;
+	}
+
+	public static function get() {
+		$key = self::$path_info;
+		if( mPHP::$is_mobile ) {
+			$key .= '(mobile)';
+		}
+		return self::$table->get($key);
+	}
+
+	public static function set($arrData) {
+		$key = self::$path_info;
+		if( mPHP::$is_mobile ) {
+			$key .= '(mobile)';
+		}
+		self::$table->set($key, $arrData);
 	}
 
 }
@@ -393,8 +476,8 @@ class view {
 	//$tpl:模版文件
 	//$file:根据模版生成的静态文件
 	//$dir:模版文件夹分支（默认为空）
-	//$cacheTime:静态文件缓存时间
-	public function loadTpl($tpl,$file = '') {
+	//$time:静态文件缓存时间
+	public function loadTpl($tpl,$file = '', $time = 0) {
 		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
 		ob_start();
 		$arrData = $this->_include($tpl,$file);
@@ -404,17 +487,25 @@ class view {
 			if( $this->is_merger ) $arrData['html'] = $this->merger($arrData['html']);
 			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
 		}
-		if( $this->is_cache ) {
+
+		//路由缓存逻辑
+		if( $time && !empty(mPHP::$CFG['router']) ) {
+			$ctime = $_SERVER['REQUEST_TIME'];
 			$date = date('Y-m-d H:i:s');
 			$arrData['html'] .= "<!-- mPHP html cache $date -->";
 			$strDir = dirname($arrData['file']);
 			if( !is_dir($strDir) ) mkdir($strDir,0775,true);
 			file_put_contents($arrData['file'],$arrData['html']);
-			$createTime = filemtime($arrData['file']) ;
 			mPHP::header('Cache-Control','max-age=0');
-			mPHP::header('Last-Modified',date("D, d M Y H:i:s",$createTime));
+			mPHP::header('Last-Modified',date("D, d M Y H:i:s",$ctime));
+
+			$data = array(
+				'ctime' => $ctime , 
+				'etime' => $ctime + $time , 
+				'file' => $arrData['file']
+			);
+			router::set($data);
 		}
-		
 		echo $arrData['html'];
 	}
 	
@@ -431,13 +522,13 @@ class view {
 	public function merger($str) {
 		$root = U();
 		$arrMergerCss = $arrMergerJs = array();
-		$script = "#<script.*src=['\"](/?.+\.js)['\"].*></script>#";
-		$style	= "#<link.*href=['\"](/?[^'\"]+\.css[^'\"]*)['\"].*>#";
+		$script = "#<script.*src=['\"](((?!(http|https)://))[^'\"]+\.js)['\"].*></script>#";
+		$style	=  "#<link.*href=['\"](((?!(http|https)://))[^'\"]+\.css[^'\"]*)['\"].*>#";
 		preg_match_all($style,$str,$arrStyle);
 		$str = preg_replace($style,'',$str);
 		preg_match_all($script,$str,$arrScript);
 		$str = preg_replace($script,'',$str);
-
+		
 		foreach( $arrStyle[1] as &$row) {
 			if( substr($row,0,7) != 'http://' || substr($row,0,8) != 'https://' ) {
 				$row = strtr( $row,array($root=>'') );
@@ -471,10 +562,12 @@ class view {
 	*/
 	public function _include($tpl, $file = '') {
 		if( is_array($this->data) ) {
-			foreach($this->data as $key => &$val) $$key = $val;
+			foreach($this->data as $key => $val) $$key = $val;
 		}
+
 		$tpl_file = TPL_PATH."{$tpl}.tpl.html";
 		$tpl_c_file = TPL_C_PATH . "{$tpl}.tpl.php";
+
 		//判断是否需要重新编译模版
 		if( !file_exists($tpl_c_file) || filemtime($tpl_file) != filemtime($tpl_c_file) ) {
 			$flag = true;
@@ -504,11 +597,13 @@ class view {
 		echo $html;
 
 		if($file == '') $file = CACHE_HTML_PATH . "{$tpl}.html";
+		
 		$arrData['file'] = $file;
 		$arrData['html'] = $html;
 		return $arrData;
 	}
 	
+	//应该优先使用路由缓存功能，方便，性能也更好
 	public function cache($file,$cacheTime) {
 		$this->is_cache = true;
 		$time = $_SERVER['REQUEST_TIME'];

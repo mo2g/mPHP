@@ -73,8 +73,7 @@ class pageModel
 	*/
 	//function page1($this->intPage,$this->intPages,$this->intTotalData,$this->intPageData,$this->strUrl,$true = true)
 	public function page1() {
-		global $CFG;
-		if( !empty($this->true) && isset($CFG['url_type']) ) {
+		if( !empty($this->true) && isset(mPHP::$CFG['url_type']) ) {
 			$suffix = $this->true['suffix'];
 			$this->strUrl .= '/';
 		} else {
@@ -117,8 +116,7 @@ class pageModel
 	 			else $strHtmlFoot .= "<a href='" . $this->strUrl . $intTotalPage . $suffix . "'>{$intTotalPage}</a>
 	 				<a href='" . $this->strUrl . ($this->intPage + 1) .  $suffix . "'>下一页</a>\n";
 			}
-		}
-		else {
+		} else {
 			if($intTotalPage > $this->intPages + 1)
 	 			$strHtmlHead .= "<a href='" . $this->strUrl . ($this->intPage - 1). "{$suffix}'>上一页</a><a href='" . $this->strUrl ."1{$suffix}'>1...</a>\n";
 	 		else

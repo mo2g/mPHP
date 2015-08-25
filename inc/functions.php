@@ -73,13 +73,13 @@ function C($path,$key = '',$value = '') {
 				$arrKey = explode('.',$key);
 				$arrConfig[$arrKey[0]][$arrKey[1]] = $value;
 				$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
-				file_put_contents($path,$config);
+				file_put_contents($path,$config,LOCK_EX);
 				return $arrConfig[$arrKey[0]][$arrKey[1]];
 			} else {
 				//更新对应键值的参数
 				$arrConfig[$key] = $value;
 				$config = "<?php\nreturn ". var_export($arrConfig,1) .';';
-				file_put_contents($path,$config);
+				file_put_contents($path,$config,LOCK_EX);
 				return $arrConfig[$key];
 			}
 		}
@@ -190,14 +190,18 @@ function D($dao) {
 function M($model,$arrConfig = array() ) {
 	static $arrModel = array();
 	$model = "{$model}Model";
-	if( !isset( $arrModel[$model] ) ) {
-		if( $arrConfig ) {
-			$arrModel[$model] = new $model($arrConfig);
-		} else {
+	if( $arrConfig ) {
+		$key = serialize("{$model}({$arrConfig})");
+		if( !isset( $arrModel[$key] ) ) {
+			$arrModel[$key] = new $model($arrConfig);
+		}
+	} else {
+		$key = $model;
+		if( !isset( $arrModel[$model] ) ) {
 			$arrModel[$model] = new $model();
 		}
 	}
-	return $arrModel[$model];
+	return $arrModel[$key];
 }
 
 /*
@@ -234,7 +238,8 @@ function file_merger($arrFile,$out,$cache=false) {
 	//判断是否有文件被修改
 	// $flag：0:没有文件被修改;	1:有文件被修改
 	if( file_exists($out) ) {
-		$cacheFile = M('cacheFile');
+		// $cacheFile = M('cacheFile');
+		$cacheFile = new cache\cacheModel('file');
 		if( $type == 'js' ) {
 			$cacheFile->in('js');
 		} else {
@@ -284,8 +289,14 @@ function file_merger($arrFile,$out,$cache=false) {
 			}
 			`$exec` ;
 		} else {
-			//php程序精简文件
-			//测试阶段
+			/*
+			php程序精简文件（测试阶段）
+			对于编码不规范的js，可能会报错，例如：
+			alert(1)
+			alert(2)
+			压缩后为
+			alert(1) alert(2)
+			*/
 			$str = preg_replace( '#/\*.+?\*/#s','', $str );//过滤注释 /* */
 			$str = preg_replace( '#(?<!http:)(?<!\\\\)(?<!\')(?<!")//(?<!\')(?<!").*\n#','', $str );//过滤注释 //
 			$str = preg_replace( '#[\n\r\t]+#',' ', $str );//回车 tab替换成空格
