@@ -5,7 +5,7 @@ if( PHP_SAPI != 'cli' ) {
 }
 define('SWOOLE_DEAMON',	'swoole_server_mPHP');
 define('INDEX_PATH',	__DIR__.'/example/');
-define('MPHP_PATH',	realpath(__DIR__.'/../mPHP/').'/');	//框架根目录
+define('MPHP_PATH',	realpath(__DIR__.'/../').'/');	//框架根目录
 
 class HttpServer{
 	public static $instance;
@@ -38,7 +38,6 @@ class HttpServer{
 	}
 
 	public function onWorkerStart() {
-		include MPHP_PATH.'inc/define.php';
 		include MPHP_PATH.'mPHP.php';
 		self::$mPHP = mPHP::init();
 	}

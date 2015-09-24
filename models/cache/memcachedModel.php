@@ -13,12 +13,12 @@ namespace cache {
 		public function __construct($arrConfig = array() ) {
 			$mark = isset( $arrConfig['mark'] ) ? $arrConfig['mark'] : serialize($arrConfig);//标记mem服务，避免重复连接
 
-			$mem = new Memcached($mark);
+			$mem = new \Memcached($mark);
 			if( isset($arrConfig['auth']) && isset($arrConfig['password']) ) {
 				//需要认证的mem服务
 				if( count( $mem->getServerList() ) == 0 ) {
-					$mem->setOption(Memcached::OPT_COMPRESSION, false);
-					$mem->setOption(Memcached::OPT_BINARY_PROTOCOL, true);
+					$mem->setOption(\Memcached::OPT_COMPRESSION, false);
+					$mem->setOption(\Memcached::OPT_BINARY_PROTOCOL, true);
 					$mem->addServer($arrConfig['host'],$arrConfig['port']);
 					$mem->setSaslAuthData($arrConfig['auth'], $arrConfig['password']);
 				}

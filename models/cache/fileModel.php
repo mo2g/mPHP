@@ -10,16 +10,30 @@ namespace cache {
 
 	class fileModel {
 		public $fileName;
+		public $path = '';
+		public $suffix = '.config.php';
 
 		public function __construct() {
+			$this->path = CACHE_PATH . 'file';
 			\mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
 			$this->in('main');
 		}
 
+		public function setPath($path) {
+			$this->path = $path;
+			return $this->path;
+		}
+
+		public function setSuffix($suffix) {
+			$this->suffix = $suffix;
+			return $this->suffix;
+		}
+
 		public function in($file) {
-			$this->fileName = CACHE_PATH . "file/{$file}.config.php";
-			if( !file_exists(CACHE_PATH . 'file') ) {
-				mkdir(CACHE_PATH . 'file',0755,true);
+			$path = $this->path;
+			$this->fileName = "{$path}/{$file}.config.php";
+			if( !file_exists($path) ) {
+				mkdir($path,0755,true);
 			}
 
 			if( !file_exists($this->fileName) ) {

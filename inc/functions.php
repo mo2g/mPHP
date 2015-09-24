@@ -190,13 +190,13 @@ function D($dao) {
 function M($model,$arrConfig = array() ) {
 	static $arrModel = array();
 	$model = "{$model}Model";
+	$key = $model;
 	if( $arrConfig ) {
-		$key = serialize("{$model}({$arrConfig})");
+		$key .= serialize($arrConfig);
 		if( !isset( $arrModel[$key] ) ) {
 			$arrModel[$key] = new $model($arrConfig);
 		}
 	} else {
-		$key = $model;
 		if( !isset( $arrModel[$model] ) ) {
 			$arrModel[$model] = new $model();
 		}

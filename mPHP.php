@@ -55,6 +55,8 @@ class mPHP {
 	public static $view = false;
 	public static $exit = false;
 	public static $is_mobile = false;
+	public static $db = false;
+	public static $pool = false;
 	public static $include_file_lists = array();
 	
 	private function __construct() {
@@ -147,7 +149,7 @@ class mPHP {
 	已经执行返回：true
 	没有执行返回：false
 	*/
-	public static function _exit() {
+	public static function _exit($true = 0) {
 		if( self::$swoole ) {
 			if( self::$exit ) {
 				return true;
@@ -156,7 +158,12 @@ class mPHP {
 				return false;
 			}
 		} else {
-			exit;
+			if( self::$exit ) {
+				$true ? exit : true;
+			} else {
+				self::$exit = true;
+				return $true ? exit : false;
+			}
 		}
 	}
 
@@ -232,7 +239,7 @@ class mPHP {
 
 	public static function is_mobile() {
 		$is_mobile = false;
-		$user_agent = $_SERVER['HTTP_USER_AGENT'] ? $_SERVER['HTTP_USER_AGENT'] : $_SERVER['USER-AGENT'];
+		$user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : $_SERVER['USER-AGENT'];
 		$mobile_agents = Array("240x320","acer","acoon","acs-","abacho","ahong","airness","alcatel",
 		"amoi","android","anywhereyougo.com","applewebkit/525","applewebkit/532","asus","audio","au-mic",
 		"avantogo","becker","benq","bilbo","bird","blackberry","blazer","bleu","cdm-","compal","coolpad",
@@ -403,7 +410,7 @@ class router {
 			}
 			$url_suffix = !empty(mPHP::$CFG['url_suffix']) ? mPHP::$CFG['url_suffix'] : false;
 			if( $url_suffix && $url_suffix != '/' && ($url_suffix_pos = strrpos($path_info, $url_suffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
-			if( mPHP::$CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
+			if( isset(mPHP::$CFG['url_type']) && mPHP::$CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
 		}
 		return $path_info;
 	}
@@ -448,13 +455,21 @@ class dao {
 		if(!self::$db) self::$db = db::init();
 		if(!self::$table_prefix) self::$table_prefix = mPHP::$CFG['table_prefix'];
 	}
+
+	public function __destruct() {
+		mPHP::$pool->free();
+		self::$db = false;
+	}
 }
 
 class db {
-	public static $db = array();
+	public static $db = [];
 
 	public static function init($name = 'master') {
-		if( empty(self::$db[$name]) ) self::$db[$name] = new pdoModel(mPHP::$CFG['pdo']);
+		if( empty(self::$db[$name]) ) {
+			if( !mPHP::$pool ) mPHP::$pool = M('pool');
+			self::$db[$name] = mPHP::$pool->get();
+		}
 		return self::$db[$name];
 	}
 }
@@ -665,10 +680,10 @@ class safe {
 	//随机生成验证码
 	public static function getKey() {
 		$strKey = '';
-		$string = 'abcdefghijklmnopqrstuvwxyz123567890';
+		$string = 'abcdefghijkmnpqrstuvwxyz2356789';
 		$i = 5;
 		while($i) {
-			$index = rand(0,34);
+			$index = rand(0,30);
 			$strKey .= $string[$index];
 			--$i;
 		}
