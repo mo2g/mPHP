@@ -179,153 +179,19 @@ class mPHP {
 	}
 
 	public static function status($http_status_code) {
-		if( self::$swoole ) {
-			self::$swoole['response']->status($http_status_code);
-		} else {
-			static $_status = array(
-				// Informational 1xx
-				100 => 'Continue',
-				101 => 'Switching Protocols',
-				// Success 2xx
-				200 => 'OK',
-				201 => 'Created',
-				202 => 'Accepted',
-				203 => 'Non-Authoritative Information',
-				204 => 'No Content',
-				205 => 'Reset Content',
-				206 => 'Partial Content',
-				// Redirection 3xx
-				300 => 'Multiple Choices',
-				301 => 'Moved Permanently',
-				302 => 'Found',  // 1.1
-				303 => 'See Other',
-				304 => 'Not Modified',
-				305 => 'Use Proxy',
-				// 306 is deprecated but reserved
-				307 => 'Temporary Redirect',
-				// Client Error 4xx
-				400 => 'Bad Request',
-				401 => 'Unauthorized',
-				402 => 'Payment Required',
-				403 => 'Forbidden',
-				404 => 'Not Found',
-				405 => 'Method Not Allowed',
-				406 => 'Not Acceptable',
-				407 => 'Proxy Authentication Required',
-				408 => 'Request Timeout',
-				409 => 'Conflict',
-				410 => 'Gone',
-				411 => 'Length Required',
-				412 => 'Precondition Failed',
-				413 => 'Request Entity Too Large',
-				414 => 'Request-URI Too Long',
-				415 => 'Unsupported Media Type',
-				416 => 'Requested Range Not Satisfiable',
-				417 => 'Expectation Failed',
-				// Server Error 5xx
-				500 => 'Internal Server Error',
-				501 => 'Not Implemented',
-				502 => 'Bad Gateway',
-				503 => 'Service Unavailable',
-				504 => 'Gateway Timeout',
-				505 => 'HTTP Version Not Supported',
-				509 => 'Bandwidth Limit Exceeded'
-			);
-			if(isset($_status[$http_status_code])) {
-				header("HTTP/1.1 {$http_status_code} {$_status[$http_status_code]}");
-			}
-		}
+		httpModel::status($http_status_code);
 	}
 
-	public static function is_mobile() {
-		$is_mobile = false;
-		$user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : $_SERVER['USER-AGENT'];
-		$mobile_agents = Array("240x320","acer","acoon","acs-","abacho","ahong","airness","alcatel",
-		"amoi","android","anywhereyougo.com","applewebkit/525","applewebkit/532","asus","audio","au-mic",
-		"avantogo","becker","benq","bilbo","bird","blackberry","blazer","bleu","cdm-","compal","coolpad",
-		"danger","dbtel","dopod","elaine","eric","etouch","fly ","fly_","fly-","go.web","goodaccess",
-		"gradiente","grundig","haier","hedy","hitachi","htc","huawei","hutchison","inno","ipad","ipaq",
-		"ipod","jbrowser","kddi","kgt","kwc","lenovo",
-		"lg ","lg2","lg3","lg4","lg5","lg7","lg8","lg9","lg-","lge-","lge9",
-		"longcos","maemo","mercator","meridian","micromax","midp","mini","mitsu",
-		"mmm","mmp","mobi","mot-","moto","nec-","netfront","newgen","nexian","nf-browser","nintendo",
-		"nitro","nokia","nook","novarra","obigo","palm","panasonic","pantech","philips","phone","pg-",
-		"playstation","pocket","pt-","qc-","qtek","rover","sagem","sama","samu","sanyo","samsung","sch-",
-		"scooter","sec-","sendo","sgh-","sharp","siemens","sie-","softbank","sony","spice","sprint","spv",
-		"symbian","tablet","talkabout","tcl-","teleca","telit","tianyu","tim-","toshiba","tsm","up.browser",
-		"utec","utstar","verykool","virgin","vk-","voda","voxtel","vx","wap","wellco","wig browser","wii",
-		"windows ce","wireless","xda","xde","zte");
-		foreach($mobile_agents as $device) {
-			if(stristr($user_agent, $device)) {
-				$is_mobile = true;
-				break;
-			}
-		}
-		return $is_mobile;
-	}
-	
 	public static function init() {
 		if( !self::$mPHP ) self::$mPHP = new mPHP();
 		return self::$mPHP;
 	}
 	
 	public static function initSite() {
-		self::initMainDir();
-		self::initDb();
+		initModel::initMainDir();
+		initModel::initDb();
 	}
 	
-	public static function initMainDir() {
-		if(!is_dir(CACHE_PATH)) {
-			mkdir(CACHE_PATH,0755,true);
-			file_put_contents(CACHE_PATH.'index.html','');
-		}
-		/*
-		if(!is_dir(CONF_PATH)) {
-			mkdir(CONF_PATH);
-			file_put_contents(CONF_PATH.'index.html','');
-		}
-		*/
-		if(!is_dir(CONTROLLERS_PATH)) {
-			mkdir(CONTROLLERS_PATH,0755,true);
-			file_put_contents(CONTROLLERS_PATH.'index.html','');
-		}
-		if(!is_dir(MODELS_PATH)) {
-			mkdir(MODELS_PATH,0755,true);
-			file_put_contents(MODELS_PATH.'index.html','');
-		}
-		if(!is_dir(SERVICES_PATH)) {
-			mkdir(SERVICES_PATH,0755,true);
-			file_put_contents(SERVICES_PATH.'index.html','');
-		}
-		if(!is_dir(DAOS_PATH)) {
-			mkdir(DAOS_PATH,0755,true);
-			file_put_contents(DAOS_PATH.'index.html','');
-		}
-		if(!is_dir(TPL_PATH)) {
-			mkdir(TPL_PATH,0755,true);
-			file_put_contents(TPL_PATH.'index.html','');
-		}
-		if(!is_dir(TPL_C_PATH.'admin')) {
-			mkdir(TPL_C_PATH.'admin',0755,true);
-			file_put_contents(TPL_C_PATH.'index.html','');
-			file_put_contents(TPL_C_PATH.'admin/index.html','');
-		}
-		if(!is_dir(STATIC_PATH.'merger') ) {
-			mkdir(STATIC_PATH.'merger',0755,true);
-			file_put_contents(STATIC_PATH.'index.html','');
-			file_put_contents(STATIC_PATH.'merger/index.html','');
-		}
-		foreach(mPHP::$CFG['main_dir'] as $dir) {
-			directoryModel::createDirs($dir['path'],$dir['totle']);
-		}
-	}
-	
-	//初始化数据库
-	public static function initDb() {
-		$db = db::init();
-		$db->initDb('initdata/tables.sql');
-		unset($db);
-	}
 }
 
 //简单路由
@@ -377,7 +243,7 @@ class router {
 		if( !empty($_SERVER['PATH_INFO']) ) {
 			self::$path_info = $path_info = $_SERVER['PATH_INFO'];
 
-			mPHP::$is_mobile = mPHP::is_mobile();
+			mPHP::$is_mobile = mobileModel::is_mobile();
 
 			//是否开启了路由
 			if( !empty(mPHP::$CFG['router']) ) {
@@ -558,8 +424,6 @@ class view {
 		}
 		$css = file_merger($arrMergerCss,crc32(implode($arrMergerCss,'')).'.css');
 		$js = file_merger($arrMergerJs,crc32(implode($arrMergerJs,'')).'.js');
-		// $str = strtr( $str,array('<link/>'=>$css,'<link />'=>$css) );
-		// $str = strtr( $str,array('<script></script>'=>$js) );
 		$str = preg_replace('#<link\s*/>#', $css, $str,1);
 		$str = preg_replace('#<script\s*>\s*</script>#', $js, $str,1);
 		return $str;

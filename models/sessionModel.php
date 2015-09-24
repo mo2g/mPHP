@@ -19,6 +19,7 @@ class sessionModel {
 	public function __construct($cache = null) {
 		$this->cache = $cache;
 		$this->save_path = session_save_path();
+		$this->save_path = empty($this->save_path) ? '/var/lib/php/session' : $this->save_path;
 	}
 
 	public function start($sessid = false) {
