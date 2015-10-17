@@ -9,8 +9,13 @@
 	消息：<input id="msg">
 	<button id="send">发送</button>
 </div>
-<div>
-<ul id="msg_lists"></ul>
+<div style="display:none">
+	<ul id="msg_lists"></ul>
+</div>
+<div style="display:none">
+	<p>无法连接websocket服务器，请确保启动服务</p>
+	<p>启动demos目录下的PHP文件，启动方式：</p>
+	<p>php swoole_server.php</p>
 </div>
 <script src="http://libs.useso.com/js/jquery/2.1.1/jquery.min.js"></script>
 <script>
@@ -18,18 +23,17 @@ var ws,
 	username,
 	msg;
 
-
 $('#connect').click(function() {
 	if( ws ) return false;
+	$('div').eq(3).toggle();
 	username = $('#username').val();
 	if( !username ) return false;
 
 	//连接服务器
 	ws = new WebSocket("ws://"+document.domain+":8059");
 	ws.onopen = function() {
-		ws.send(username);//
-		$('div').eq(0).toggle();
-		$('div').eq(1).toggle();
+		ws.send(username);
+		$('div').toggle();
 	};
 
 	//接收服务器消息
@@ -42,7 +46,6 @@ $('#connect').click(function() {
 	ws.onclose = function(){
 		console.log('sever is close');
 	};
-
 });
 
 $('#send').click(function() {
@@ -51,11 +54,6 @@ $('#send').click(function() {
 	ws.send(msg);
 	msg = null;
 });
-
-	
-
-
-
 
 </script>
 </body>

@@ -108,18 +108,12 @@ class HttpServer{
 	}
 
 	//用户接入
-	public function onOpen( $server, $request) { 
-		if(!isset($_SESSION)) {
-			session_start();
-			$_SESSION['key'] = time();
-		}
-		print_r($request);
-		// print_r($_SESSION);
-		// echo "server: handshake success with fd{$request->fd}\n"; 
+	public function onOpen( $server, $request) {
+		$server->push($request->fd, 'this is websocket server');
 	}
 
 	public function onMessage( $server, $frame) {
-		$result = $server->push($frame->fd, "this is server"); 
+		$result = $server->push($frame->fd, $frame->data);
 	}
 
 	public function onClose( $server, $fd) { 
