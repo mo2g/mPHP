@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div>
+	用户名：<input id="username">
+	<button id="connect">连接</button>
+</div>
+<div style="display:none">
+	消息：<input id="msg">
+	<button id="send">发送</button>
+</div>
+<div>
+<ul id="msg_lists"></ul>
+</div>
+<script src="http://libs.useso.com/js/jquery/2.1.1/jquery.min.js"></script>
+<script>
+var ws,
+	username,
+	msg;
+
+
+$('#connect').click(function() {
+	if( ws ) return false;
+	username = $('#username').val();
+	if( !username ) return false;
+
+	//连接服务器
+	ws = new WebSocket("ws://"+document.domain+":8059");
+	ws.onopen = function() {
+		ws.send(username);//
+		$('div').eq(0).toggle();
+		$('div').eq(1).toggle();
+	};
+
+	//接收服务器消息
+	ws.onmessage = function (e) {
+		$('#msg_lists').append('<li>'+ e.data +'</li>');
+		console.log(e.data);
+	};
+
+	//服务器断开连接
+	ws.onclose = function(){
+		console.log('sever is close');
+	};
+
+});
+
+$('#send').click(function() {
+	msg = $('#msg').val();
+	if( !msg ) return false;
+	ws.send(msg);
+	msg = null;
+});
+
+	
+
+
+
+
+</script>
+</body>
+</html>

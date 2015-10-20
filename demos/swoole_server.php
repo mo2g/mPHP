@@ -12,7 +12,7 @@ class HttpServer{
 	public static $mPHP;
 
 	public function __construct() {
-		$http = new swoole_http_server("0.0.0.0", 8059);
+		$http = new swoole_websocket_server("0.0.0.0", 8059);
 		$http->set(
 			array(
 				'worker_num' => 1,
@@ -22,9 +22,16 @@ class HttpServer{
 				'group' => 'apache',
 			)
 		);
+
+		//http
 		$http->on('Start', array($this, 'onStart'));
 		$http->on('WorkerStart', array($this, 'onWorkerStart'));
 		$http->on('Request', array($this, 'onRequest'));
+
+		//websocket
+		$http->on('open',[$this,'onOpen']);
+		$http->on('message',[$this,'onMessage']);
+		$http->on('close',[$this,'onClose']);
 		$http->start();
 	}
 
@@ -98,6 +105,24 @@ class HttpServer{
 
 		$result = ob_get_clean();
 		$response->end($result);
+	}
+
+	//用户接入
+	public function onOpen( $server, $request) { 
+		if(!isset($_SESSION)) {
+			session_start();
+			$_SESSION['key'] = time();
+		}
+		print_r($request);
+		// print_r($_SESSION);
+		// echo "server: handshake success with fd{$request->fd}\n"; 
+	}
+
+	public function onMessage( $server, $frame) {
+		$result = $server->push($frame->fd, "this is server"); 
+	}
+
+	public function onClose( $server, $fd) { 
 	}
 
 	public static function init() {
