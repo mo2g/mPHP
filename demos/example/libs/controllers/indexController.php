@@ -15,6 +15,12 @@ class indexController {
 		print_r($_SESSION);
 	}
 
+	public function session1Action() {
+		$session = new sessionModel();
+		$session->start();
+		print_r($_SESSION);
+	}
+
 	public function phpinfoAction() {
 		phpinfo();
 	}

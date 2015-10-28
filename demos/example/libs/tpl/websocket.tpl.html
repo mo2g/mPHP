@@ -38,7 +38,7 @@ $('#connect').click(function() {
 
 	//接收服务器消息
 	ws.onmessage = function (e) {
-		$('#msg_lists').append('<li>'+ e.data +'</li>');
+		$('#msg_lists').prepend('<li>'+ e.data +'</li>');
 		console.log(e.data);
 	};
 
