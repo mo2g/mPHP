@@ -10,7 +10,6 @@ define('MPHP_PATH',	realpath(__DIR__.'/../').'/');	//框架根目录
 class HttpServer{
 	public static $instance;
 	public static $mPHP;
-	public $session;
 
 	public function __construct() {
 		$this->http = $http = new swoole_websocket_server("0.0.0.0", 8059);
@@ -24,12 +23,12 @@ class HttpServer{
 			)
 		);
 
-		//http
+		//http服务
 		$http->on('Start', array($this, 'onStart'));
 		$http->on('WorkerStart', array($this, 'onWorkerStart'));
 		$http->on('Request', array($this, 'onRequest'));
 
-		//websocket
+		//websocket服务
 		// $http->on('open',[$this,'onOpen']);
 		$http->on('handshake',[$this,'onHandshake']);
 		$http->on('message',[$this,'onMessage']);
@@ -113,12 +112,13 @@ class HttpServer{
 
 		ob_start();
 		self::$mPHP->run();
+		$result = ob_get_clean();
 
 		unset($_GET,$_POST,$_SERVER,$_REQUEST);
-		$_GET = $_POST = $_SERVER = $_REQUEST = array();
+		$_GET = $_POST = $_SERVER = $_REQUEST = [];
 
-		$result = ob_get_clean();
 		$response->end($result);
+		unset(mPHP::$swoole['request'],mPHP::$swoole['response']);
 	}
 
 	 //用户接入
@@ -161,21 +161,33 @@ class HttpServer{
 		}
 
 		mPHP::status(101);
-		$this->session = new sessionModel();
-		$this->session->start();
+		$session = new sessionModel();
+		$session->start();
+		mPHP::$swoole['ws_session'][ $response->fd ]['session'] = $_SESSION;
 		$response->end();
-		return true; 
+
+		//释放资源
+		unset(mPHP::$swoole['server'],mPHP::$swoole['frame']);
 	}
+
 	//WebSocket接收消息
 	public function onMessage( $server, $frame) {
-		$this->http->close($frame->fd);
-		// return;
-		$_SESSION['a'] = isset( $_SESSION['a'] ) ? ++$_SESSION['a'] : 0;
-		$this->s = isset( $this->s ) ? ++$this->s : 0;
-		$result = $server->push($frame->fd, $this->s);
+		mPHP::$swoole['server'] = $server;
+		mPHP::$swoole['frame'] = $frame;
+
+		$_GET['c'] = 'websocket';
+		$_GET['a'] = 'dispatch';
+		self::$mPHP->run();
+
+		//释放资源
+		unset(mPHP::$swoole['server'],mPHP::$swoole['frame']);
 	}
+
 	//WebSocket连接关闭
 	public function onClose( $server, $fd) {
+		if( isset(mPHP::$swoole['ws_session'][$fd]['session']) ) {
+			unset(mPHP::$swoole['ws_session'][$fd]);
+		}
 		echo "client {$fd} closed\n"; 
 	}
 

@@ -32,13 +32,22 @@ $('#connect').click(function() {
 	//连接服务器
 	ws = new WebSocket("ws://"+document.domain+":8059");
 	ws.onopen = function() {
-		ws.send(username);
+		var msg = JSON.stringify({
+			'cmd' : 'login',
+			'username' : username,
+		});
+		ws.send(msg);
 		$('div').toggle();
 	};
 
 	//接收服务器消息
 	ws.onmessage = function (e) {
-		$('#msg_lists').prepend('<li>'+ e.data +'</li>');
+		var msg = JSON.parse(e.data);
+		if( msg.cmd == 'login' ) {
+			$('#msg_lists').prepend('<li>'+ msg.username +' 登录了</li>');
+		} else if( msg.cmd == 'msg' ) {
+			$('#msg_lists').prepend('<li>'+ e.data +'</li>');
+		}
 		console.log(e.data);
 	};
 
@@ -51,6 +60,11 @@ $('#connect').click(function() {
 $('#send').click(function() {
 	msg = $('#msg').val();
 	if( !msg ) return false;
+	msg = JSON.stringify({
+		'cmd' : 'msg',
+		'msg' : msg,
+	});
+	console.log(msg);
 	ws.send(msg);
 	msg = null;
 });

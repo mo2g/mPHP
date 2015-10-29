@@ -61,7 +61,7 @@ class sessionModel {
 
 	//获取SESSION
 	public function get() {
-		 $data = '';
+		 $data = 'a:0:{}';
 		if( $this->cache ) {
 			$key = $this->prefix . $this->sid;
 			$data = $this->cache->get($key);
@@ -87,7 +87,7 @@ class sessionModel {
 			$this->cache->set($key,serialize($_SESSION),$time);
 		} else {
 			$time = time();
-			if( $_SESSION != $this->session || ($time - $this->mktime) > 60  ) {
+			if( $_SESSION != $this->session || ($time - $this->mktime) > 60 ) {
 				//$_SESSION 有变化或者每过60秒更新  
 				$file = $this->save_path . '/' . $this->prefix . $this->sid;
 				return file_put_contents($file, serialize($_SESSION), LOCK_EX);
