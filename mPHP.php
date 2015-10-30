@@ -440,7 +440,7 @@ class view {
 	TPL_C_PATH.'b.tpl.php'文件
 	*/
 	public function _include($tpl, $file = '') {
-		if( is_array($this->data) ) {
+		if( isset($this->data) && is_array($this->data) ) {
 			foreach($this->data as $key => $val) $$key = $val;
 		}
 
@@ -463,7 +463,7 @@ class view {
 				$tpl_file = TPL_MPHP_PATH."error.tpl.html";
 				$html = file_get_contents($tpl_file);
 			}
-			$html = '<?php if(!defined("INIT_MPHP"))exit;?>' . $this->tplCompile($html);//替换标签
+			$html = '<?php if(!defined("INIT_MPHP"))return;?>' . $this->tplCompile($html);//替换标签
 			file_exists(dirname ($tpl_c_file)) or mkdir(dirname ($tpl_c_file),0755,true);
 			file_put_contents($tpl_c_file,$html);
 			if( $flag ) touch($tpl_c_file,filemtime($tpl_file));//编译文件与模版文件同步修改时间

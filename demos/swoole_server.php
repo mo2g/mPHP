@@ -3,6 +3,7 @@ if( PHP_SAPI != 'cli' ) {
 	header('HTTP/1.1 404 Not Found');
 	exit;
 }
+define('INIT_MPHP','mo2g.com');//常量值可以随便定义
 define('SWOOLE_DEAMON',	'swoole_server_mPHP');
 define('INDEX_PATH',	__DIR__.'/example/');
 define('MPHP_PATH',	realpath(__DIR__.'/../').'/');	//框架根目录
@@ -113,12 +114,11 @@ class HttpServer{
 		ob_start();
 		self::$mPHP->run();
 		$result = ob_get_clean();
-
-		unset($_GET,$_POST,$_SERVER,$_REQUEST);
-		$_GET = $_POST = $_SERVER = $_REQUEST = [];
-
 		$response->end($result);
+
 		unset(mPHP::$swoole['request'],mPHP::$swoole['response']);
+		unset($_GET,$_POST,$_COOKIE,$_SERVER,$_REQUEST);
+		$_GET = $_POST = $_COOKIE = $_SERVER = $_REQUEST = [];
 	}
 
 	 //用户接入
@@ -161,13 +161,19 @@ class HttpServer{
 		}
 
 		mPHP::status(101);
+		// print_r($request->cookie['MPHPSESSID']);
 		$session = new sessionModel();
-		$session->start();
+		if( isset($request->cookie['MPHPSESSID']) ) {
+			$session->start($request->cookie['MPHPSESSID']);
+		} else {
+			$session->start();
+		}
+		
 		mPHP::$swoole['ws_session'][ $response->fd ]['session'] = $_SESSION;
+		// print_r($_SESSION);
 		$response->end();
-
 		//释放资源
-		unset(mPHP::$swoole['server'],mPHP::$swoole['frame']);
+		unset(mPHP::$swoole['request'],mPHP::$swoole['frame']);
 	}
 
 	//WebSocket接收消息
@@ -188,6 +194,7 @@ class HttpServer{
 		if( isset(mPHP::$swoole['ws_session'][$fd]['session']) ) {
 			unset(mPHP::$swoole['ws_session'][$fd]);
 		}
+		unset($_SESSION);
 		echo "client {$fd} closed\n"; 
 	}
 

@@ -1,4 +1,5 @@
 <?php
+
 class websocketController {
 	public function indexAction() {
 		$view = new view();//声明视图类
@@ -6,8 +7,61 @@ class websocketController {
 		$view->loadTpl('websocket');//加载模版
 	}
 
+/*
+server {
+	listen   80; 
+	server_name  im.mo2g.com;
+	set $root /web/mPHP/demos/example/;
+	root $root;
+
+	index index.php  index.html index.htm;
+
+	proxy_http_version 1.1;
+	proxy_set_header Connection "keep-alive";
+
+	location ~ \.php {
+		proxy_pass http://127.0.0.1:8059;
+	}   
+
+	location / { 
+		if ( !-e $request_filename) {
+			proxy_pass http://127.0.0.1:8059;
+		}
+	}
+}
+	*/
+
+	public function joinAction() {
+		$view = new view();//声明视图类
+		$view->data['title'] = 'mPHP websocket demo ';
+		$view->loadTpl('websocket/join');
+	}
+
+	public function roomAction() {
+		$session = new sessionModel();
+		$session->start();
+
+		if( !isset($_SESSION['username']) ) {
+			if( !isset($_POST['username']) || strlen($_POST['username']) < 1 ) {
+				mPHP::status(302);
+				mPHP::header('Location','/?c=websocket&a=join');
+				return;
+			} else {
+				$_SESSION['username'] = $_POST['username'];
+			}
+		}
+		print_r($_SESSION);
+		$view = new view();//声明视图类
+		$view->loadTpl('websocket/room');
+	}
+
 	//解析websocket传递过来的消息，执行对应的方法
 	public function dispatchAction() {
+		if( !isset(mPHP::$swoole['frame']) ) {
+			//非法访问
+			return;
+		}
+
 		$msg = json_decode(mPHP::$swoole['frame']->data, true);
 
 		if( empty($msg['cmd']) ) {
@@ -26,12 +80,12 @@ class websocketController {
 
 	public function cmd_login($client_id,$msg) {
 		mPHP::$swoole['ws_session'][ $client_id ]['session'] += [
-			'username' => $msg['username'],
 			'login_time' => time(),
 		];
 		$jsonMsg = json_encode([
 			'cmd' => 'login',
-			'username' => $msg['username']
+			'id' => $client_id,
+			'username' => mPHP::$swoole['ws_session'][ $client_id ]['session']['username']
 		]);
 		$this->broadcast($client_id,$jsonMsg);
 	}
