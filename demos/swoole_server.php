@@ -30,7 +30,6 @@ class HttpServer{
 		$http->on('Request', array($this, 'onRequest'));
 
 		//websocket服务
-		// $http->on('open',[$this,'onOpen']);
 		$http->on('handshake',[$this,'onHandshake']);
 		$http->on('message',[$this,'onMessage']);
 		$http->on('close',[$this,'onClose']);
@@ -121,10 +120,6 @@ class HttpServer{
 		$_GET = $_POST = $_COOKIE = $_SERVER = $_REQUEST = [];
 	}
 
-	 //用户接入
-	public function onOpen( $server, $request) {
-	}
-
 	//WebSocket建立连接后进行握手
 	public function onHandshake($request, $response) {
 		$this->initRequest($request);
@@ -161,16 +156,15 @@ class HttpServer{
 		}
 
 		mPHP::status(101);
-		// print_r($request->cookie['MPHPSESSID']);
 		$session = new sessionModel();
 		if( isset($request->cookie['MPHPSESSID']) ) {
 			$session->start($request->cookie['MPHPSESSID']);
 		} else {
 			$session->start();
 		}
-		
+
+		$_SESSION['fd'] = $response->fd;
 		mPHP::$swoole['ws_session'][ $response->fd ]['session'] = $_SESSION;
-		// print_r($_SESSION);
 		$response->end();
 		//释放资源
 		unset(mPHP::$swoole['request'],mPHP::$swoole['frame']);
@@ -189,13 +183,20 @@ class HttpServer{
 		unset(mPHP::$swoole['server'],mPHP::$swoole['frame']);
 	}
 
-	//WebSocket连接关闭
+	//连接关闭
 	public function onClose( $server, $fd) {
 		if( isset(mPHP::$swoole['ws_session'][$fd]['session']) ) {
+			//WebSocket连接关闭
+			$_GET['c'] = 'websocket';
+			$_GET['a'] = 'dispatch';
+			mPHP::$swoole['frame'] = new stdClass();
+			mPHP::$swoole['frame']->data = '{"cmd":"logout"}';
+			mPHP::$swoole['frame']->fd = $fd;
+			mPHP::$swoole['server'] = $server;
+			self::$mPHP->run();
 			unset(mPHP::$swoole['ws_session'][$fd]);
 		}
-		unset($_SESSION);
-		echo "client {$fd} closed\n"; 
+		if( isset($_SESSION) ) unset($_SESSION);
 	}
 
 	public static function init() {

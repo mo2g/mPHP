@@ -46,7 +46,7 @@ $('#connect').click(function() {
 		if( msg.cmd == 'login' ) {
 			$('#msg_lists').prepend('<li>'+ msg.username +' 登录了</li>');
 		} else if( msg.cmd == 'msg' ) {
-			$('#msg_lists').prepend('<li>'+ e.data +'</li>');
+			$('#msg_lists').prepend('<li>'+ msg.username + ':' + msg.msg +'</li>');
 		}
 		console.log(e.data);
 	};

@@ -1,0 +1,52 @@
+<!DOCTYPE  html>
+<html  lang="en">
+<head>
+	<title>磨途歌-聊天室</title>
+	<meta  charset="UTF-8"  />
+	<meta  name="viewport"  content="width=device-width,  initial-scale=1.0"  />
+	<link  rel="stylesheet"  href="http://libs.useso.com/js/bootstrap/2.3.0/css/bootstrap.min.css"  />
+	<link  rel="stylesheet"  href="/static/css/matrix-style.css"  />
+	<link  href='http://fonts.useso.com/css?family=Open+Sans:400,700,800'  rel='stylesheet'  type='text/css'>
+</head>
+<body>
+<div  class="container-fluid">
+	<div  class="row-fluid">
+		<div  class="span12">
+	            <div  class="widget-box  widget-chat">
+	                <div  class="widget-title">  <span  class="icon">  <i  class="icon-comment"></i>  </span></div>
+	                <div  class="widget-content  nopadding">
+	                    <div  class="chat-users  panel-right2">
+	                        <div  class="panel-title">
+	                            <h5>在线用户</h5>
+	                        </div>
+				<div  class="panel-content  nopadding">
+					<ul  id="user_list"  class="contact-list"></ul>
+				</div>
+	                    </div>
+	                    <div  class="chat-content  panel-left2">
+	                        <div  class="chat-messages"  id="chat-messages">
+	                            <div  id="chat-messages-inner"></div>
+	                        </div>
+	                        <div  class="chat-message  well">
+	                            <button  id="send"  class="btn  btn-success">发送</button>
+	                            <span  class="input-box">
+						<input  type="text"  name="msg-box"  id="msg-box"  />
+	                            </span>  </div>
+	                    </div>
+	                </div>
+	            </div>
+		</div>
+	</div>
+	<div class="row-fluid">
+		<div class="span12" id="footer"> 2015 &copy; <a href="http://mo2g.com" target="_blank">磨途歌</a>. <a href="https://github.com/mo2g/mPHP" target="_blank">Github</a></div>
+	</div>
+</div>
+<script>
+var username = '<?=$username?>(You)',
+	fd = <?=$fd?>;
+</script>
+<script  type="text/javascript"  src="http://libs.useso.com/js/jquery/1.11.1/jquery.min.js"></script>
+<script  type="text/javascript"  src="/static/js/new_msg.js"></script>
+<script  type="text/javascript"  src="/static/js/ws_msg.js"></script>
+</body>
+</html>
