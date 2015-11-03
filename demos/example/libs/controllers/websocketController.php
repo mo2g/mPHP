@@ -41,7 +41,6 @@ class websocketController {
 	public function roomAction() {
 		$session = new sessionModel();
 		$session->start();
-
 		if( !isset($_SESSION['username']) ) {
 			if( !isset($_POST['username']) || strlen($_POST['username']) < 1 ) {
 				mPHP::status(302);
@@ -52,7 +51,7 @@ class websocketController {
 			}
 		}
 		$view = new view();//声明视图类
-		$view->data['fd'] = $_SESSION['fd'];
+		$view->data['time'] = time();
 		$view->data['username'] = $_SESSION['username'];
 		$view->loadTpl('websocket/room');
 	}

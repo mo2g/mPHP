@@ -17,10 +17,10 @@ swoole拓展需要手动调用 $session->save() 保存修改后的session
 class sessionModel {
 	public $sid;
 	public $save_path;
-	public $cookie_lifetime = 86400;
+	public $cookie_lifetime = 600;
+	public $time_session_id = 6;//session id更新时间间隔
 	public $prefix = 'mphpsess_';
 	public $session = [];
-	public $mktime = 0;
 
 	public $cache;//存储方式，默认为文件存储
 
@@ -31,11 +31,7 @@ class sessionModel {
 	}
 
 	public function start($sessid_init = false) {
-		if( mPHP::$swoole ) {
-			$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'MPHPSESSID';
-		} else {
-			$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'PHPSESSID';
-		}
+		$sessionName = $this->sessionName();
 
 		if( !empty($_GET[$sessionName]) ) {
 			$sessid = $_GET[$sessionName];
@@ -45,17 +41,34 @@ class sessionModel {
 			$sessid = isset( $_COOKIE[$sessionName] ) ? $_COOKIE[$sessionName] : false;
 			$sessid = $sessid_init ? $sessid_init : $sessid;
 			if( $sessid === false ) {
-				//SESSION_ID存入cookie
-				//SESSION = md5( 客户端IP + 微妙时间戳 + 随机数)
-				$sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
-				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,'/');
+				$sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));//SESSION_ID = md5( 客户端IP + 微妙时间戳 + 随机数)
+				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime);//SESSION_ID存入cookie
 			}
 			$this->sid = $sessid;
 			self::get();
+
+			//定时更新sessionid，增大劫持难度
+			if( !isset($_SESSION['createtime']) ) {
+				$_SESSION['createtime'] = time();
+			} elseif($_SESSION['createtime'] + $this->time_session_id <= time() ) {
+				$file = $this->save_path . '/' . $this->prefix . $sessid;
+				if( is_file($file) ) unlink($file);//删除旧SESSION缓存文件
+				$_SESSION['createtime'] = time();
+				$this->sid = $sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
+				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime);
+			}
 		} else {
 			session_name($sessionName);
 			if( isset($sessid) ) session_id($sessid);
 			if( !isset($_SESSION) ) session_start();
+
+			//定时更新sessionid，增大劫持难度
+			if( !isset($_SESSION['createtime']) ) {
+				$_SESSION['createtime'] = time();
+			} elseif($_SESSION['createtime'] + $this->time_session_id <= time() ) {
+				$_SESSION['createtime'] = time();
+				session_regenerate_id(true);
+			}
 		}
 	}
 
@@ -68,40 +81,49 @@ class sessionModel {
 		} else {
 			$file = $this->save_path . '/' . $this->prefix . $this->sid;
 			if( file_exists($file) ) {
-				$this->mktime = filemtime($file);//session文件最后修改时间
-				if(  $this->mktime + $this->cookie_lifetime >= time() ) {//判断session是否过期
+				$mktime = filemtime($file);//session文件最后修改时间
+				if(  $mktime + $this->cookie_lifetime >= time() ) {//判断session是否过期
 					$data = file_get_contents($file);
 				}
-			} else {
-				$this->mktime = time();
 			}
 		}
 		$this->session = $_SESSION = unserialize($data);
 	}
 
 	//保存SESSION
-	public function save($timeout=0) {
+	public function save($timeout = 0) {
 		if( $this->cache ) {
 			$key = $this->prefix . $this->sid;
 			$time = $timeout ? $timeout + time() : 0;
 			$this->cache->set($key,serialize($_SESSION),$time);
 		} else {
 			$time = time();
-			if( $_SESSION != $this->session || ($time - $this->mktime) > 60 ) {
-				//$_SESSION 有变化或者每过60秒更新  
-				$file = $this->save_path . '/' . $this->prefix . $this->sid;
-				return file_put_contents($file, serialize($_SESSION), LOCK_EX);
-			} 
+			$file = $this->save_path . '/' . $this->prefix . $this->sid;
+			if( $_SESSION != $this->session ) {
+				return file_put_contents($file, serialize($_SESSION), LOCK_EX);//$_SESSION 有变化则更新$_SESSION缓存文件
+			}
 		}
 	}
 
 	public function delete() {
 		if( $this->cache ) {
-
 		} else {
 			$file = $this->save_path . '/' . $this->prefix . $this->sid;
 			if( file_exists($file) ) unlink($file);
 		}
+	}
+
+	//获取/设置当前会话名称
+	public function sessionName($sessionName = false) {
+		if( $sessionName === false ) {
+			if( mPHP::$swoole ) {
+				$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'MPHPSESSID';
+			} else {
+				$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'PHPSESSID';
+			}
+		}
+		$this->sessionName = $sessionName;
+		return $sessionName;
 	}
 
 	public function __destruct() {
