@@ -25,12 +25,30 @@ namespace cache {
 		//进队列
 		public function push($queue_name,$value) {
 			$key = $this->queue_prefix . $queue_name;
-			return $this->redis->lpush($key,$value);
+			return $this->redis->rpush($key,$value);
 		}
 		//出队列
 		public function pop($queue_name) {
 			$key = $this->queue_prefix . $queue_name;
 			return $this->redis->lpop($key);
+		}
+		/**
+		 * 阻塞式出队列,默认无限阻塞
+		 * $queue_name为数组时，排在前面的队列优先处理，都取不到数据时阻塞
+		 * @param $queue_name 队列名称
+		 * @param $timeout 阻塞时间
+		 * @return mixed
+		 */
+		public function blpop($queue_name,$timeout=0) {
+			if( is_array($queue_name) ) {
+				$key = [];
+				foreach ($queue_name as $name) {
+					$key[] = $this->queue_prefix . $name;
+				}
+			} else {
+				$key = $this->queue_prefix . $queue_name;
+			}
+			return $this->redis->blpop($key,$timeout);
 		}
 		//队列长度
 		public function len($queue_name) {
