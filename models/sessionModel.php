@@ -14,11 +14,12 @@ swoole拓展需要手动调用 $session->save() 保存修改后的session
 暂时不支持原生PHP调用swoole的SESSION，反之亦然
 
 */
+ini_set('session.serialize_handler', 'php_serialize');//PHP >= 5.5.32
 class sessionModel {
 	public $sid;
 	public $save_path;
 	public $cookie_lifetime = 86400;
-	public $prefix = 'mphpsess_';
+	public $prefix = 'sess_';
 	public $session = [];
 	public $mktime = 0;
 
@@ -31,19 +32,15 @@ class sessionModel {
 	}
 
 	public function start($sessid_init = false) {
-		if( mPHP::$swoole ) {
-			$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'MPHPSESSID';
-		} else {
-			$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'PHPSESSID';
-		}
+		$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'PHPSESSID';
 
 		if( !empty($_GET[$sessionName]) ) {
 			$sessid = $_GET[$sessionName];
 		}
+		$sessid = isset( $_COOKIE[$sessionName] ) ? $_COOKIE[$sessionName] : false;
+		$sessid = $sessid_init ? $sessid_init : $sessid;
 
-		if( mPHP::$swoole ) {
-			$sessid = isset( $_COOKIE[$sessionName] ) ? $_COOKIE[$sessionName] : false;
-			$sessid = $sessid_init ? $sessid_init : $sessid;
+		if( true || mPHP::$swoole ) {
 			if( $sessid === false ) {
 				//SESSION_ID存入cookie
 				//SESSION = md5( 客户端IP + 微妙时间戳 + 随机数)

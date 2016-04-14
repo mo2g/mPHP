@@ -20,13 +20,13 @@ isset( $CFG['template']['tag_left'] ) or $CFG['template']['tag_left'] = '<!--#';
 isset( $CFG['template']['tag_right'] ) or $CFG['template']['tag_right'] = '#-->';	/* 模版标签，编译后替换为：?> 	*/
 
 //定义关键文件夹的绝对路径,提高include文件效率
+defined('LIBS_PATH') or define('LIBS_PATH',							INDEX_PATH.'libs/');		//库目录
 defined('MPHP_PATH') or define('MPHP_PATH',						__DIR__.'/');	//框架根目录
-defined('CACHE_PATH') or define('CACHE_PATH',						INDEX_PATH.'cache/');				//缓存目录
+defined('CACHE_PATH') or define('CACHE_PATH',						LIBS_PATH.'cache/');				//缓存目录
 defined('CACHE_HTML_PATH') or define('CACHE_HTML_PATH',		CACHE_PATH.'html/');				//html缓存目录
 defined('TPL_C_PATH') or define('TPL_C_PATH',							CACHE_PATH.'tpl_c/');				//模版编译目录
 defined('CONTROLLERS_ADMIN') or define('CONTROLLERS_ADMIN',	INDEX_PATH.'admin/libs/controllers/');	//控制器目录
 
-defined('LIBS_PATH') or define('LIBS_PATH',							INDEX_PATH.'libs/');		//库目录
 defined('CONTROLLERS_PATH') or define('CONTROLLERS_PATH',		LIBS_PATH.'controllers/');	//控制器目录
 defined('MODELS_PATH') or define('MODELS_PATH',					LIBS_PATH.'models/');		//model目录
 defined('DAOS_PATH') or define('DAOS_PATH',						LIBS_PATH.'daos/');			//dao目录
