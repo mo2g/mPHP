@@ -21,6 +21,35 @@ namespace cache {
 			$this->redis->connect($host,$port);
 		}
 
+		/*---------------------------事务操作---------------------------*/
+		/*
+		标记一个事务块的开始。
+		返回值：
+			总是返回 OK 。
+		*/
+		public function multi() {
+			return $this->redis->multi();
+		}
+		/*
+		执行所有事务块内的命令。
+		返回值：
+			事务块内所有命令的返回值，按命令执行的先后顺序排列。
+			当操作被打断时，返回空值 nil 。
+		*/
+		public function exec() {
+			return $this->redis->exec();
+		}
+		/*
+		取消事务，放弃执行事务块内的所有命令。
+		返回值：
+			总是返回 OK 。
+		*/
+		public function discard() {
+			return $this->redis->discard();
+		}
+		/*---------------------------事务操作---------------------------*/
+		
+
 		/*---------------------------简单队列---------------------------*/
 		//入队列
 		public function push($queue_name,$value) {
@@ -61,7 +90,7 @@ namespace cache {
 			} else {
 				$key = $this->queue_prefix . $queue_name;
 			}
-			return $this->redis->blpop($key,$timeout);
+			return $this->redis->brpop($key,$timeout);
 		}
 
 		/*
@@ -92,6 +121,12 @@ namespace cache {
 			return $this->redis->brpoplpush($key,$key_save,$timeout);
 		}
 
+		/*
+		$data = $redis->brpoplpush('queue_name','queue_save_name'));  
+		print_r($data);
+		//逻辑操作
+		$redis->lrem($queue_save_name,$data);//最后移除数据
+		*/
 		public function lrem($queue_name,$count ,$value) {
 			$key = $this->queue_prefix . $queue_name;
 			return $this->redis->lrem($key,$count,$value);
@@ -104,6 +139,141 @@ namespace cache {
 			return $this->redis->llen($key);
 		}
 		/*---------------------------简单队列---------------------------*/
+
+		/*---------------------------哈希表操作---------------------------*/
+
+		/*
+		将哈希表key中的域field的值设为value。
+		返回值：
+			如果field是哈希表中的一个新建域，并且值设置成功，返回1。
+			如果哈希表中域field已经存在且旧值已被新值覆盖，返回0。
+		*/
+		public function hset($key,$field,$data) {
+			return $this->redis->hset($key,$field,$data);
+		}
+
+		/*
+		将哈希表key中的域field的值设置为value，当且仅当域field不存在。
+		返回值：
+			设置成功，返回1。
+			如果给定域已经存在且没有操作被执行，返回0。
+		*/
+		public function hsetnx($key,$field,$data) {
+			return $this->redis->hsetnx($key,$field,$data);
+		}
+
+		/*
+		data = [
+			'field' => value,
+			'field' => value
+			'field' => value
+		];
+		同时将多个field - value(域-值)对设置到哈希表key中。
+		此命令会覆盖哈希表中已存在的域。
+		如果key不存在，一个空哈希表被创建并执行HMSET操作。
+		返回值：
+			如果命令执行成功，返回OK。
+			当key不是哈希表(hash)类型时，返回一个错误。
+		*/
+		public function hmset($key,$data) {
+			return $this->redis->hmset($key,$data);
+		}
+
+		/*
+		返回哈希表key中给定域field的值。
+		返回值：
+			给定域的值。
+			当给定域不存在或是给定key不存在时，返回nil。
+		*/
+		public function hget($key,$field) {
+			return $this->redis->hget($key,$field);
+		}
+
+		/*
+		返回哈希表key中，一个或多个给定域的值。
+		返回值：
+			如果给定的域不存在于哈希表，那么返回一个nil值。
+			一个包含多个给定域的关联值的表，表值的排列顺序和给定域参数的请求顺序一样。
+		*/
+		public function hmget($key,$field) {
+			return $this->redis->hmget($key,$field);
+		}
+
+		/*
+		返回哈希表key中，所有的域和值。
+		返回值：
+			以列表形式返回哈希表的域和域的值。 若key不存在，返回空列表。
+		*/
+		public function hgetall($key) {
+			return $this->redis->hgetall($key);
+		}
+
+		/*
+		删除哈希表key中的一个或多个指定域，不存在的域将被忽略。
+		返回值:
+			被成功移除的域的数量，不包括被忽略的域。
+		*/
+		public function hdel($key,$field) {
+			return $this->redis->hdel($key,$field);
+		}
+
+		/*
+		返回哈希表key中域的数量。
+		返回值：
+			哈希表中域的数量。
+			当key不存在时，返回0。
+		*/
+		public function hlen($key) {
+			return $this->redis->hlen($key);
+		}
+
+		/*
+		查看哈希表key中，给定域field是否存在。
+		返回值:
+			如果哈希表含有给定域，返回1。
+			如果哈希表不含有给定域，或key不存在，返回0。
+		*/
+		public function hexists($key,$field) {
+			return $this->redis->hexists($key,$field);
+		}
+
+		/*
+		为哈希表key中的域field的值加上增量increment。
+		增量也可以为负数，相当于对给定域进行减法操作。
+		如果key不存在，一个新的哈希表被创建并执行HINCRBY命令。
+		如果域field不存在，那么在执行命令前，域的值被初始化为0。
+		对一个储存字符串值的域field执行HINCRBY命令将造成一个错误。
+		本操作的值限制在64位(bit)有符号数字表示之内。
+		返回值:
+			执行HINCRBY命令之后，哈希表key中域field的值。
+		*/
+		// public function hincrby($key,$data) {
+		// 	return $this->redis->hincrby($key,$field,$increment);
+		// }
+		public function hincrby($key,$field,$increment) {
+			return $this->redis->hincrby($key,$field,$increment);
+		}
+
+		/*
+		返回哈希表key中的所有域。
+		返回值：
+			一个包含哈希表中所有域的表。
+			当key不存在时，返回一个空表。
+		*/
+		public function hkeys($key) {
+			return $this->redis->hkeys($key);
+		}
+
+		/*
+		返回哈希表key中的所有值。
+		返回值：
+			一个包含哈希表中所有值的表。
+			当key不存在时，返回一个空表。
+		*/
+		public function hvals($key) {
+			return $this->redis->hvals($key);
+		}
+		/*---------------------------哈希表操作---------------------------*/
 
 
 		/*---------------------------键/值操作---------------------------*/

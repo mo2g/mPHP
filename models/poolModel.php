@@ -11,6 +11,7 @@ class poolModel {
 	public $connection_num = 0;
 	public $idle_pool = [];
 	public $db_config;
+	public $db;
 
 	public function __construct($config = []) {
 		if( $config ) {
@@ -43,15 +44,15 @@ class poolModel {
 			}
 			//创建新连接
 			++$this->connection_num;
-			mPHP::$db = new pdoModel($this->db_config);
-			return mPHP::$db;
+			$this->db = new pdoModel($this->db_config);
+			return $this->db;
 		}
 	}
 
 	//释放连接
 	public function free() {
 		--$this->connection_num;
-		$this->idle_pool[] = mPHP::$db;
-		mPHP::$db = false;
+		$this->idle_pool[] = $this->db;
+		$this->db = false;
 	}
 }
