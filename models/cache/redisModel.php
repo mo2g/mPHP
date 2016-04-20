@@ -277,6 +277,16 @@ namespace cache {
 
 
 		/*---------------------------键/值操作---------------------------*/
+
+		/*
+		查找所有符合给定模式 pattern 的 key 。
+		返回值：
+			符合给定模式的 key 列表。
+		*/
+		public function keys($key) {
+			return $this->redis->keys($key);
+		}
+
 		/**
 		 * 写缓存
 		 * @param $key 缓存名称
