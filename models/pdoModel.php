@@ -49,7 +49,7 @@ class pdoModel {
 	//检测PDO是否与数据库断开连接
 	public function checkConnection() {
 		$msg = $this->db->getAttribute(PDO::ATTR_SERVER_INFO);
-		if( $msg == 'MySQL server has gone away' ) {
+		if( $msg == 'MySQL server has gone away' || $msg === false) {
 			mlog($msg);
 			return false;//连接已断开
 		}
