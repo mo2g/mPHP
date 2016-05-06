@@ -8,7 +8,7 @@
 */
 class httpModel {
 	public static function status($http_status_code) {
-		if( isset(mPHP::$swoole) ) {
+		if( mPHP::$swoole ) {
 			mPHP::$swoole['response']->status($http_status_code);
 		} else {
 			static $_status = array(

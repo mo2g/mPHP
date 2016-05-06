@@ -69,8 +69,8 @@ class mPHP {
 	
 	public function run() {
 		safe::safeGPC();
-		if( router::run() ) return;
-		
+		$cache = router::run();
+		if( $cache ) return;
 		$controller	= isset($_GET['c']) ? "{$_GET['c']}Controller" : 'indexController';
 		$action		= isset($_GET['a']) ? "{$_GET['a']}Action"  : 'indexAction';
 
@@ -216,23 +216,14 @@ class router {
 	}
 
 	public static function run() {
-		$mark = ',';
-		$path_info = self::path_info();
+		$cache = self::path_info();
 
-		if( $path_info === true ) return true;//已缓存
-
-		$path_info = preg_replace('#^/\w+\.php#', $mark, $path_info);
-		if($path_info == '/') $path_info = $mark;
-
-		if( !empty($path_info) ) $splits = explode($mark, trim($path_info, $mark));
-		else return false;
-
-		if( empty($_GET['c']) ) $_GET['c'] = empty($splits[0]) ? self::$controller : $splits[0];
-		if( empty($_GET['a']) ) $_GET['a'] = empty($splits[1]) ? self::$action : $splits[1];
-
-		$count = count($splits);
-		for($i = 2; $i < $count; $i += 2) {
-			if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
+		if( $cache === -1 ) {
+		} else if( $cache === 0 ) {
+			return true;//已缓存
+		} else if( $cache === 1 ) {
+		} else if( $cache === 2 ) {
+		} else if( $cache === 3 ) {
 		}
 		// $_REQUEST = array_merge($_GET, $_REQUEST);
 		return false;//未缓存
@@ -240,45 +231,104 @@ class router {
 
 	public static function path_info() {
 		$path_info = '';
-		if( !empty($_SERVER['PATH_INFO']) ) {
-			self::$path_info = $path_info = $_SERVER['PATH_INFO'];
+		if( !empty( $_SERVER['PATH_INFO'] ) ) {
+			$path_info = $_SERVER['path_info'];
+		} else if( !empty( $_SERVER['QUERY_STRING'] ) ) {
+			$path_info = $_SERVER['QUERY_STRING'];
+		} else if( !empty( $_SERVER['REQUEST_URI'] ) ) {
+			$path_info = $_SERVER['REQUEST_URI'];
+		} else if( !empty( $_SERVER['argv'][1] ) ) {
+			$path_info = $_SERVER['argv'][1];
+		}
 
-			mPHP::$is_mobile = mobileModel::is_mobile();
+		if( empty($path_info) ) return -1;
+		self::$path_info = $path_info;
+		mPHP::$is_mobile = mobileModel::is_mobile();
 
-			//是否开启了路由
-			if( !empty(mPHP::$CFG['router']) ) {
-				$time = $_SERVER['REQUEST_TIME'];
+		//路由缓存逻辑
+		if( self::cache() ) return 0;
+		// 使用 /?c=index&a=index 方式访问
+		parse_str($path_info,$_get);
+		if( !empty($_get['c']) ) $_GET['c'] = $_get['c'];
+		if( !empty($_get['a']) ) $_GET['a'] = $_get['a'];
+		unset($_get);
+		if( !empty($_GET['c']) || !empty($_GET['a']) ) {
+			return 1;
+		}
+		// ------------------------
 
-				//路由缓存逻辑
-				if( !( $_REQUEST['c'] || $_REQUEST['a'] ) && !mPHP::$debug && ( $data = self::get() ) && $data['etime'] > $time && file_exists($data['file']) ) {
-					$createTime = date("D, d M Y H:i:s",$data['ctime']);
-					mPHP::header('Cache-Control','max-age=0');
-					mPHP::header('Last-Modified',$createTime);
-					if( isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $createTime ) {
-						mPHP::status(304);
-					} else {
-						include $data['file'] ;
-					}
-					mPHP::_exit();
-					return true;//相关控制器已缓存
-				}
+		//使用路由规则解析URL
+		//是否开启了路由
+		if( !empty(mPHP::$CFG['router']) ) {
+			$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
+			$config = mPHP::$CFG['router'];
 
-				$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
-				$config = mPHP::$CFG['router'];
-
-				if( isset($config[$first_param])) {
-					foreach ($config[$first_param] as $v) {
-						$count = 0; //记录成功替换的个数
-						$path_info = preg_replace($v[0],$v[1],$path_info,-1,$count);
-						if($count > 0) break; //只要匹配上一个，则停止匹配，故在$CFG['router']从上到下有优先权。
-					}
+			if( isset($config[$first_param])) {
+				foreach ($config[$first_param] as $v) {
+					$count = 0; //记录成功替换的个数
+					$path_info = preg_replace($v[0],$v[1],$path_info,-1,$count);
+					if($count > 0) break; //只要匹配上一个，则停止匹配，故在$CFG['router']从上到下有优先权。
 				}
 			}
-			$url_suffix = !empty(mPHP::$CFG['url_suffix']) ? mPHP::$CFG['url_suffix'] : false;
-			if( $url_suffix && $url_suffix != '/' && ($url_suffix_pos = strrpos($path_info, $url_suffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
-			if( isset(mPHP::$CFG['url_type']) && mPHP::$CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
 		}
-		return $path_info;
+		$url_suffix = !empty(mPHP::$CFG['url_suffix']) ? mPHP::$CFG['url_suffix'] : false;
+		if( $url_suffix && $url_suffix != '/' && ($url_suffix_pos = strrpos($path_info, $url_suffix) ) ) $path_info = substr($path_info, 0, $url_suffix_pos);
+		if( isset(mPHP::$CFG['url_type']) && mPHP::$CFG['url_type'] == 'NODIR') $path_info = str_replace('-', '/', $path_info); // 无目录的user-info-15.html
+
+		if( self::$path_info != $path_info ) {
+			$mark = ',';
+			$path_info = preg_replace('#^/\w+\.php#', $mark, $path_info);
+			if($path_info == '/') $path_info = $mark;
+
+			$splits = explode($mark, trim($path_info, $mark));
+
+			if( empty($_GET['c']) ) $_GET['c'] = empty($splits[0]) ? self::$controller : $splits[0];
+			if( empty($_GET['a']) ) $_GET['a'] = empty($splits[1]) ? self::$action : $splits[1];
+
+			$count = count($splits);
+			for($i = 2; $i < $count; $i += 2) {
+				if( isset($splits[$i]) && isset($splits[$i+1])) $_GET[$splits[$i]] = $splits[$i+1];
+			}
+			return 2;
+		}
+		// ------------------------
+
+		/*
+		直接解析url
+		http://xxx/q/w/e/r/t/y 解析为
+		$_GET['c'] = q
+		$_GET['a'] = w
+		$_GET['e'] = r
+		$_GET['t'] = y
+		*/
+		$path_info = trim(self::$path_info,'/');
+		$_get = explode('/', $path_info);
+		if( !empty($_get[0]) ) $_GET['c'] = $_get[0];
+		if( !empty($_get[1]) ) $_GET['a'] = $_get[1];
+		$count = count($_get);
+		for($i = 2; $i < $count; $i += 2) {
+			if( !empty($_get[$i]) && isset($_get[$i+1]) && $_get[$i] != 'c' && $_get[$i] != 'a' ) $_GET[$_get[$i]] = $_get[$i+1];
+		}
+		if( !empty($_GET['c']) || !empty($_GET['a']) ) return 3;
+
+		return 4;
+	}
+
+	public static function cache() {
+		$cache = false;
+		if( !mPHP::$debug && ( $data = self::get() ) && $data['etime'] > $_SERVER['REQUEST_TIME'] && file_exists($data['file']) ) {
+			$createTime = date("D, d M Y H:i:s",$data['ctime']);
+			mPHP::header('Cache-Control','max-age=0');
+			mPHP::header('Last-Modified',$createTime);
+			if( isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $createTime ) {
+				mPHP::status(304);
+			} else {
+				include $data['file'];
+			}
+			mPHP::_exit();
+			$cache = true;//相关控制器已缓存
+		}
+		return $cache;
 	}
 
 	public static function get() {
@@ -370,7 +420,7 @@ class view {
 		}
 
 		//路由缓存逻辑
-		if( $time && !empty(mPHP::$CFG['router']) ) {
+		if( $time ) {
 			$ctime = $_SERVER['REQUEST_TIME'];
 			$date = date('Y-m-d H:i:s');
 			$arrData['html'] .= "<!-- mPHP html cache $date -->";
