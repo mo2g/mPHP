@@ -241,6 +241,7 @@ class router {
 			$path_info = $_SERVER['argv'][1];
 		}
 
+		if( $path_info == '/index.php' ) $path_info = '/';
 		if( empty($path_info) ) return -1;
 		self::$path_info = $path_info;
 		mPHP::$is_mobile = mobileModel::is_mobile();
