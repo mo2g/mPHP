@@ -132,7 +132,6 @@ namespace cache {
 			return $this->redis->lrem($key,$count,$value);
 		}
 		
-
 		//队列长度
 		public function len($queue_name) {
 			$key = $this->queue_prefix . $queue_name;

@@ -156,16 +156,17 @@ class HttpServer{
 		}
 
 		mPHP::status(101);
+		$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'MPHPSESSID';
 		$session = new sessionModel();
-		if( isset($request->cookie['MPHPSESSID']) ) {
-			$session->start($request->cookie['MPHPSESSID']);
+		if( isset($request->cookie[$sessionName]) ) {
+			$session->start($request->cookie[$sessionName]);
 		} else {
 			$session->start();
 		}
 
-		$_SESSION['fd'] = $response->fd;
 		mPHP::$swoole['ws_session'][ $response->fd ]['session'] = $_SESSION;
 		$response->end();
+
 		//释放资源
 		unset(mPHP::$swoole['request'],mPHP::$swoole['frame']);
 	}

@@ -1,5 +1,5 @@
 jQuery(function($)  {
-var debug = 1,
+var debug = 1,//浏览器控制台开关
 	ws = false;
 function connect() {
 	if( ws ) return false;
@@ -12,7 +12,7 @@ function connect() {
 			'cmd' : 'login',
 		});
 		ws.send(data);
-		user_join(fd,username);
+		user_join(time,username);
 		// $('div').toggle();
 		if( debug ) console.log("connected  to  "  +  "ws://"+document.domain+":8059");
 	};
@@ -37,7 +37,7 @@ function connect() {
 	};
 
 	//服务器断开连接
-	ws.onclose = function(){
+	ws.onclose = function(e){
 		if( debug ) console.log("connection  closed  ("  +  e.code  +  ")");
 	};
 }
@@ -53,7 +53,7 @@ $('#send').click(function(){
 			'msg' : msg
 		});
 		ws.send(data);
-		var img = user_img(fd);
+		var img = user_img(time);
 		send_msg(username,img,msg,true);
 	}
 });
