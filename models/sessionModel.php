@@ -19,6 +19,7 @@ class sessionModel {
 	public $sid;
 	public $save_path;
 	public $cookie_lifetime = 86400;
+	public $time_session_id = 120;//session id更新时间间隔
 	public $prefix = 'sess_';
 
 	public $session = [];

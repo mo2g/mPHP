@@ -232,7 +232,7 @@ class router {
 	public static function path_info() {
 		$path_info = '';
 		if( !empty( $_SERVER['PATH_INFO'] ) ) {
-			$path_info = $_SERVER['path_info'];
+			$path_info = $_SERVER['PATH_INFO'];
 		} else if( !empty( $_SERVER['QUERY_STRING'] ) ) {
 			$path_info = $_SERVER['QUERY_STRING'];
 		} else if( !empty( $_SERVER['REQUEST_URI'] ) ) {
