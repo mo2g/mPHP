@@ -2,7 +2,7 @@
 /*
 作者:moyancheng
 创建时间:2015-08-27
-最后更新时间:2015-10-28
+最后更新时间:2016-05-24
 
 功能：因为swoole运行机制，导致原生PHP SESSION用法失效，所以写了一个简单通用的session管理模块
 使用方式
@@ -12,6 +12,8 @@ $session->start();
 swoole拓展需要手动调用 $session->save() 保存修改后的session
 单纯使用mPHP框架，SESSION操作与原生PHP一致
 暂时不支持原生PHP调用swoole的SESSION，反之亦然
+-------------------
+PHP版本>=5.532，可以正常使用原生PHP操作session
 
 */
 ini_set('session.serialize_handler', 'php_serialize');//PHP >= 5.5.32
@@ -32,7 +34,7 @@ class sessionModel {
 		$this->save_path = empty($this->save_path) ? '/var/lib/php/session' : $this->save_path;
 	}
 
-	public function start($sessid_init = false) {
+	public function start($sessid_init = false,$path = '/') {
 		$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'PHPSESSID';
 
 		if( !empty($_GET[$sessionName]) ) {
@@ -44,7 +46,7 @@ class sessionModel {
 		if( true || mPHP::$swoole ) {
 			if( $sessid === false ) {
 				$sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));//SESSION_ID = md5( 客户端IP + 微妙时间戳 + 随机数)
-				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime);//SESSION_ID存入cookie
+				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);//SESSION_ID存入cookie
 			}
 			$this->sid = $sessid;
 			self::get();
@@ -57,7 +59,7 @@ class sessionModel {
 				if( is_file($file) ) unlink($file);//删除旧SESSION缓存文件
 				$_SESSION['createtime'] = time();
 				$this->sid = $sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
-				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime);
+				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);
 			}
 		} else {
 			session_name($sessionName);
