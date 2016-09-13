@@ -294,7 +294,12 @@ namespace cache {
 		 * @return integer
 		 */
 		public function set($key,$data,$expire=0) {
-			return $this->redis->set($key,$data,$expire);
+			if( $expire > 0 ) {
+				return $this->redis->set($key,$data,$expire);
+			} else {
+				return $this->redis->set($key,$data);
+			}
+			
 		}
 
 		/**
