@@ -23,6 +23,7 @@ class sessionModel {
 	public $cookie_lifetime = 86400;
 	public $time_session_id = 120;//session id更新时间间隔
 	public $prefix = 'sess_';
+	public $renamed_sessionid = false;//是否启用定时更新sessionid，默认禁用
 
 	public $session = [];
 
@@ -32,6 +33,10 @@ class sessionModel {
 		$this->cache = $cache;
 		$this->save_path = session_save_path();
 		$this->save_path = empty($this->save_path) ? '/var/lib/php/session' : $this->save_path;
+	}
+
+	public function setRenamedSessionid($status = false) {
+		$this->renamed_sessionid = $status;
 	}
 
 	public function start($sessid_init = false,$path = '/') {
@@ -58,7 +63,9 @@ class sessionModel {
 				$file = $this->save_path . '/' . $this->prefix . $sessid;
 				if( is_file($file) ) unlink($file);//删除旧SESSION缓存文件
 				$_SESSION['createtime'] = time();
-				$this->sid = $sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
+				if( $this->renamed_sessionid ) {
+					$this->sid = $sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
+				}
 				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);
 			}
 		} else {
