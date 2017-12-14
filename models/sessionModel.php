@@ -51,7 +51,6 @@ class sessionModel {
 		if( true || mPHP::$swoole ) {
 			if( $sessid === false ) {
 				$sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));//SESSION_ID = md5( 客户端IP + 微妙时间戳 + 随机数)
-				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);//SESSION_ID存入cookie
 			}
 			$this->sid = $sessid;
 			self::get();
@@ -66,8 +65,8 @@ class sessionModel {
 				if( $this->renamed_sessionid ) {
 					$this->sid = $sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
 				}
-				mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);
 			}
+			mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);//SESSION_ID存入cookie
 		} else {
 			session_name($sessionName);
 			if( isset($sessid) ) session_id($sessid);
