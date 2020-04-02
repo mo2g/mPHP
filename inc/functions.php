@@ -280,9 +280,11 @@ function file_merger($arrFile,$out,$cache=false) {
 			//java程序精简文件
 			//需要下载yuicompressor-2.4.8.jar，默认放置LIBS_PATH目录中
 			//文档地址：http://yui.github.io/yuicompressor/
+            // 改用 uglifyjs 压缩 JS
 			file_put_contents($tmp,$str);
 			if( $type == 'js' ) {
-				$exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
+				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
+                $exec = "uglifyjs -c -m {$tmp} -o {$out}";
 			} elseif( $type == 'css' ) {
 				//$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
 				$exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS
