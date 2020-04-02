@@ -284,7 +284,7 @@ function file_merger($arrFile,$out,$cache=false) {
 			file_put_contents($tmp,$str);
 			if( $type == 'js' ) {
 				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
-                $exec = "uglifyjs -c -m {$tmp} -o {$out}";
+                $exec = "uglifyjs {$tmp} -c -m  -o {$out}";
 			} elseif( $type == 'css' ) {
 				//$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
 				$exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS

@@ -346,6 +346,7 @@ class router {
 		if( mPHP::$is_mobile ) {
 			$key .= '(mobile)';
 		}
+        self::$table ->in('router');
 		self::$table->set($key, $arrData);
 	}
 
@@ -463,13 +464,13 @@ class view {
 		$str = preg_replace($script,'',$str);
 		
 		foreach( $arrStyle[1] as &$row) {
-			if( substr($row,0,7) != 'http://' || substr($row,0,8) != 'https://' ) {
+			if( substr($row,0,7) != 'http://' && substr($row,0,8) != 'https://' && substr($row,0,2) != '//' ) {
 				$row = strtr( $row,array($root=>'') );
 				$arrMergerCss[] = $row;
 			}
 		}
 		foreach( $arrScript[1] as &$row) {
-			if( substr($row,0,7) != 'http://' || substr($row,0,8) != 'https://' ) {
+			if( substr($row,0,7) != 'http://' && substr($row,0,8) != 'https://' && substr($row,0,2) != '//' ) {
 				$row = strtr( $row,array($root=>'') );
 				$arrMergerJs[] = $row;
 			}
