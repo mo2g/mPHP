@@ -37,7 +37,13 @@ defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				/
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 
 if( !defined('STATIC_URL') && isset($_SERVER['SERVER_NAME']) ) {
-	$dir = isset( $_SERVER['SCRIPT_NAME'] ) ? dirname($_SERVER['SCRIPT_NAME']) : isset( $_SERVER['REQUEST_URI'] ) ? dirname($_SERVER['REQUEST_URI']) : dirname($_SERVER['DOCUMENT_URI']);
+    $dir = isset( $_SERVER['SCRIPT_NAME'] ) ? dirname($_SERVER['SCRIPT_NAME']) : '';
+    if( empty($dir) ) {
+        $dir = isset( $_SERVER['REQUEST_URI'] ) ? dirname($_SERVER['REQUEST_URI']) : '';
+    }
+    if( empty($dir) ) {
+        $dir = isset( $_SERVER['DOCUMENT_URI'] ) ? dirname($_SERVER['DOCUMENT_URI']) : '';
+    }
 	define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}{$dir}/static/");//静态目录 URL
 	defined('JS_URL') or define('JS_URL',				STATIC_URL.'js/');	//js脚本 URL
 	defined('CSS_URL') or define('CSS_URL',			STATIC_URL.'css/');	//样式 URL
