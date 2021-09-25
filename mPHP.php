@@ -32,6 +32,7 @@ defined('MODELS_PATH') or define('MODELS_PATH',					LIBS_PATH.'models/');		//mod
 defined('DAOS_PATH') or define('DAOS_PATH',						LIBS_PATH.'daos/');			//dao目录
 defined('SERVICES_PATH') or define('SERVICES_PATH',					LIBS_PATH.'services/');		//services目录
 defined('TPL_PATH') or define('TPL_PATH',								LIBS_PATH.'tpl/');			//模版目录
+defined('LOG_PATH') or define('LOG_PATH',								LIBS_PATH.'logs/');			//日志目录
 
 defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
@@ -66,6 +67,7 @@ class mPHP {
 	public static $include_file_lists = array();
 	
 	private function __construct() {
+        mError::register();
 		if(!self::$view) self::$view = new view();
 		if(!self::$CFG) self::$CFG = $GLOBALS['CFG'];
 		if(!self::$debug) self::$debug = isset(self::$CFG['debug']) ? self::$CFG['debug'] : true;
@@ -621,4 +623,57 @@ class safe {
 	//检测跳转域名是否正确
 	public static function checkDomain() {}
 	
+}
+
+class mError {
+    protected static $_levels	= ['ERROR' => '1', 'DEBUG' => '2',  'INFO' => '3', 'ALL' => '4'];
+
+    public static function register() {
+        set_error_handler([__CLASS__, 'errorHandler'], E_ALL ^ E_NOTICE);
+        set_exception_handler([__CLASS__, 'exceptionHandler']);
+        // register_shutdown_function([__CLASS__, 'shutdownHandler']);
+    }
+
+    public static function errorHandler($errcode, $errmsg, $errfile, $errline) {
+        self::handler($errcode, $errmsg, $errfile, $errline);
+    }
+
+    public static function exceptionHandler($exception) {
+        self::handler(error_reporting(), $exception->__toString(), $exception->getFile(), $exception->getLine());
+    }
+
+    public static function shutdownHandler($e) {
+    }
+
+    public static function handler($errcode, $errmsg, $errfile, $errline) {
+        if ($errcode == E_STRICT) {
+            return;
+        }
+
+        $level = 'error';
+        $msg = "errcode: {$errcode} $errmsg $errfile $errline";
+
+        // 输出错误信息
+        if( $errcode == ($errcode & error_reporting()) ) {
+            mPHP::error($level,$msg);
+        }
+
+        // 记录错误日志
+        self::log($level,$msg);
+
+    }
+
+    public static function log($level, $message) {
+        $level = strtoupper($level);
+
+        if ( ! isset(self::$_levels[$level]) ) {
+			return FALSE;
+		}
+
+        $date = date('Y-h-d');
+        $filepath = LOG_PATH ."{$level}-{$date}.log";
+        $message = date('Y-h-d H:i:s') . ' ' . "{$message}\n";
+
+        file_put_contents($filepath,$message,FILE_APPEND);
+    }
 }

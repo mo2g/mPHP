@@ -37,7 +37,7 @@ class pdoModel {
 			//echo '网站正在进行更新升级操作，为此给您带来的不便，请谅解...';
 			$this->db = false;
 			$err = 'PDO Connection failed: ' . $e->getMessage();
-			mlog($err,INDEX_PATH.'log/pdo_err.log');
+			mlog($err,LOG_PATH.'pdo_err.log');
 			return false;
 		}
 		if( $this->charset ) {

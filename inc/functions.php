@@ -122,13 +122,17 @@ function U($strUrl = '',$true = true) {
 	$strUrl = strtr($strUrl,$arrData);
 	
 	//如果链接地址以http://开头就不用INDEX_URL
-	if( substr($strUrl,0,7) == 'http://' || substr($strUrl,0,8) == 'https://' ) {
-		$leng = strpos($strUrl,'/',7);
-		$url = substr($strUrl,0,$leng).'/';
-		$strUrl = strtr($strUrl,array($url => ''));
-	} else {
-		$url = INDEX_URL;
-	}
+	if( substr($strUrl,0,7) == 'http://' ) {
+        $leng = strpos($strUrl,'/',7);
+        $url = substr($strUrl,0,$leng).'/';
+        $strUrl = strtr($strUrl,array($url => ''));
+    } else if( substr($strUrl,0,8) == 'https://' ) {
+        $leng = strpos($strUrl,'/',8);
+        $url = substr($strUrl,0,$leng).'/';
+        $strUrl = strtr($strUrl,array($url => ''));
+    } else {
+        $url = INDEX_URL;
+    }
 	
 	if(mPHP::$CFG['url_type'] == 'DIR') $flag = '/';
 	elseif(mPHP::$CFG['url_type'] == 'NODIR') $flag = '-';
@@ -330,7 +334,7 @@ function mini_html($html) {
 }
 
 function mlog($log = '',$file = '') {
-	if( $file == '' ) $file = INDEX_PATH.'log.txt';
+	if( $file == '' ) $file = LOG_PATH.'log.txt';
 	$log = print_r($log,true);
 	$log = "date：" . date("Y-m-d H:i:s") . "\n{$log}\n";
 	file_put_contents($file,$log,FILE_APPEND|LOCK_EX);

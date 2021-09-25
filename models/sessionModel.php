@@ -48,7 +48,7 @@ class sessionModel {
 		$sessid = isset( $_COOKIE[$sessionName] ) ? $_COOKIE[$sessionName] : false;
 		$sessid = $sessid_init ? $sessid_init : $sessid;
 
-		if( true || mPHP::$swoole ) {
+		if( mPHP::$swoole ) {
 			if( $sessid === false ) {
 				$sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));//SESSION_ID = md5( 客户端IP + 微妙时间戳 + 随机数)
 			}
