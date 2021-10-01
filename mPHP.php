@@ -670,7 +670,7 @@ class mError {
 			return FALSE;
 		}
 
-        $date = date('Y-h-d');
+        $date = date('Y-m-d');
         $filepath = LOG_PATH ."{$level}-{$date}.log";
         $message = date('Y-h-d H:i:s') . ' ' . "{$message}\n";
 
