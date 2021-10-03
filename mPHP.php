@@ -34,7 +34,7 @@ defined('SERVICES_PATH') or define('SERVICES_PATH',					LIBS_PATH.'services/');	
 defined('TPL_PATH') or define('TPL_PATH',								LIBS_PATH.'tpl/');			//模版目录
 defined('LOG_PATH') or define('LOG_PATH',								LIBS_PATH.'logs/');			//日志目录
 
-defined('STATIC_PATH') or define('STATIC_PATH',						INDEX_PATH.'static/');				//静态目录
+defined('STATIC_PATH') or define('STATIC_PATH',						WEB_PATH.'static/');				//静态目录
 defined('TPL_MPHP_PATH') or define('TPL_MPHP_PATH',				MPHP_PATH.'tpl/');					//mPHP模版目录
 
 if( !defined('STATIC_URL') && isset($_SERVER['SERVER_NAME']) ) {
