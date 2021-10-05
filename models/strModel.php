@@ -56,7 +56,7 @@ class strModel {
 	 * @return string
 	 +----------------------------------------------------------
 	 */
-	public static function msubstr($str, $start=0, $length, $charset="utf-8", $suffix=true) {
+	public static function msubstr($str, $start=0, $length=NULL, $charset="utf-8", $suffix=true) {
 		if(function_exists("mb_substr")) {
 			return mb_substr($str, $start, $length, $charset);
 		} elseif(function_exists('iconv_substr')) {
