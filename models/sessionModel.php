@@ -68,9 +68,12 @@ class sessionModel {
 			}
 			mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);//SESSION_ID存入cookie
 		} else {
-			session_name($sessionName);
-			if( isset($sessid) ) session_id($sessid);
-			if( !isset($_SESSION) ) session_start();
+
+			if( !isset($_SESSION) ) {
+                session_name($sessionName);
+                if( isset($sessid) ) session_id($sessid);
+                session_start();
+            } 
 
 			//定时更新sessionid，增大劫持难度
 			if( !isset($_SESSION['createtime']) ) {
