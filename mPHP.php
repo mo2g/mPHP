@@ -414,6 +414,8 @@ class view {
 	public $is_merger = false;
 	public $is_mini_html = false;
 
+    public $data = [];
+
 	//加载xxx.tpl.html模版文件
 	//$tpl:模版文件
 	//$file:根据模版生成的静态文件
@@ -424,7 +426,7 @@ class view {
 		ob_start();
 		$arrData = $this->_include($tpl,$file);
 		ob_end_clean();
-		
+
 		if(!mPHP::$debug) {
 			if( $this->is_merger ) $arrData['html'] = $this->merger($arrData['html']);
 			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
@@ -483,8 +485,8 @@ class view {
 				$arrMergerJs[] = $row;
 			}
 		}
-		$css = file_merger($arrMergerCss,crc32(implode($arrMergerCss,'')).'.css');
-		$js = file_merger($arrMergerJs,crc32(implode($arrMergerJs,'')).'.js');
+		$css = file_merger($arrMergerCss,crc32(implode('',$arrMergerCss)).'.css');
+		$js = file_merger($arrMergerJs,crc32(implode('',$arrMergerJs)).'.js');
 		$str = preg_replace('#<link\s*/>#', $css, $str,1);
 		$str = preg_replace('#<script\s*>\s*</script>#', $js, $str,1);
 		return $str;
@@ -537,7 +539,7 @@ class view {
 		echo $html;
 
 		if($file == '') $file = CACHE_HTML_PATH . "{$tpl}.html";
-		
+
 		$arrData['file'] = $file;
 		$arrData['html'] = $html;
 		return $arrData;
@@ -653,14 +655,13 @@ class mError {
         $level = 'error';
         $msg = "errcode: {$errcode} $errmsg $errfile $errline";
 
+        // 记录错误日志
+        self::log($level,$msg);
+
         // 输出错误信息
         if( $errcode == ($errcode & error_reporting()) ) {
             mPHP::error($level,$msg);
         }
-
-        // 记录错误日志
-        self::log($level,$msg);
-
     }
 
     public static function log($level, $message) {

@@ -253,8 +253,8 @@ function file_merger($arrFile,$out,$cache=false) {
 		$flag = 0;
 		foreach($arrFile as $file) {
 			$key = strtr($file,'.',',');
-			$time = $arrTime[$key];//缓存的最后更新时间
-			$filemtime = filemtime(INDEX_PATH.$file);//当前文件最后更新时间
+			$time = $arrTime[$key] ?? 0;//缓存的最后更新时间
+			$filemtime = filemtime(WEB_PATH.$file);//当前文件最后更新时间
 			if( $time != $filemtime ) {
 				$flag = 1;
 				$cacheFile->set($key,$filemtime);//更新缓存
@@ -269,7 +269,7 @@ function file_merger($arrFile,$out,$cache=false) {
 		//正式环境启动压缩
 		ob_start();
 		foreach($arrFile as $key => $file) {
-			include INDEX_PATH.$file;
+			include WEB_PATH.$file;
 		}
 		$str = ob_get_clean();
 		
