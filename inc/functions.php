@@ -280,22 +280,24 @@ function file_merger($arrFile,$out,$cache=false) {
 			mPHP::$CFG['yuicompressor'] = LIBS_PATH.'yuicompressor-2.4.8.jar';
 		}
 		
+        file_put_contents($tmp,$str);
 		if(mPHP::$CFG['java'] && file_exists(mPHP::$CFG['yuicompressor']) ) {
 			//java程序精简文件
 			//需要下载yuicompressor-2.4.8.jar，默认放置LIBS_PATH目录中
 			//文档地址：http://yui.github.io/yuicompressor/
             // 改用 uglifyjs 压缩 JS
-			file_put_contents($tmp,$str);
 			if( $type == 'js' ) {
 				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
                 $exec = "uglifyjs {$tmp} -c -m  -o {$out}";
 			} elseif( $type == 'css' ) {
 				//$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
-				$exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS
+				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS
+                $exec = "uglifycss {$tmp} --output {$out}";
 			}
 			`$exec` ;
 		} else {
 			/*
+            推荐使用 uglifyjs uglifycss
 			php程序精简文件（测试阶段）
 			对于编码不规范的js，可能会报错，例如：
 			alert(1)
@@ -305,7 +307,8 @@ function file_merger($arrFile,$out,$cache=false) {
 			*/
 			$str = preg_replace( '#/\*.+?\*/#s','', $str );//过滤注释 /* */
 			$str = preg_replace( '#(?<!http:)(?<!\\\\)(?<!\')(?<!")//(?<!\')(?<!").*\n#','', $str );//过滤注释 //
-			$str = preg_replace( '#[\n\r\t]+#',' ', $str );//回车 tab替换成空格
+			$str = preg_replace( '#[\t]+#',' ', $str );//tab替换成空格
+            $str = preg_replace( '#[\n\r]{2,}#',"\n", $str );//多个回车合并为一个
 			$str = preg_replace( '#\s{2,}#',' ', $str );//两个以上空格合并为一个
 			file_put_contents($out,$str);
 		}
