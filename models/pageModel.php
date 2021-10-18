@@ -73,6 +73,7 @@ class pageModel
 	*/
 	//function page1($this->intPage,$this->intPages,$this->intTotalData,$this->intPageData,$this->strUrl,$true = true)
 	public function page1() {
+        $suffix = '';
 		if( !empty($this->true) && isset(mPHP::$CFG['url_type']) ) {
 			$suffix = $this->true['suffix'];
 			$this->strUrl .= '/';
