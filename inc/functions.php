@@ -267,11 +267,14 @@ function file_merger($arrFile,$out,$cache=false) {
 	if( $flag ) {
 		//当文件不存在,或者子文件被修改,就执行下边的程序
 		//正式环境启动压缩
-		ob_start();
+        $str = '';
 		foreach($arrFile as $key => $file) {
-			include WEB_PATH.$file;
+            $_str = file_get_contents(WEB_PATH.$file);
+            if($_str === false) {
+                continue;
+            }
+            $str .= "\n" . $_str;
 		}
-		$str = ob_get_clean();
 		
 		$tmp = $dir. 'tmp';
 		if( !file_exists($dir) ) mkdir($dir,0755,true);
@@ -288,13 +291,17 @@ function file_merger($arrFile,$out,$cache=false) {
             // 改用 uglifyjs 压缩 JS
 			if( $type == 'js' ) {
 				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
-                $exec = "uglifyjs {$tmp} -c -m  -o {$out}";
+                $exec = "uglifyjs {$tmp} -c -m  -o {$out} 2>&1";
 			} elseif( $type == 'css' ) {
 				//$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
 				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS
-                $exec = "uglifycss {$tmp} --output {$out}";
+                $exec = "uglifycss {$tmp} --output {$out} 2>&1";
 			}
-			`$exec` ;
+			exec($exec,$output) ;
+            if( isset($output[0]) ) {
+                // mPHP::log('ERROR',json_encode($output,JSON_UNESCAPED_UNICODE));
+                mPHP::log('INFO',print_r($output,true));
+            }
 		} else {
 			/*
             推荐使用 uglifyjs uglifycss

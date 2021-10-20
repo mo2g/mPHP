@@ -199,6 +199,20 @@ class mPHP {
 		initModel::initMainDir();
 		initModel::initDb();
 	}
+
+    public static function log($level, $message) {
+        $level = strtoupper($level);
+
+        if ( ! isset(mError::$_levels[$level]) ) {
+			return FALSE;
+		}
+
+        $date = date('Y-m-d');
+        $filepath = LOG_PATH ."{$level}-{$date}.log";
+        $message = date('Y-h-d H:i:s') . ' ' . "{$message}\n";
+
+        file_put_contents($filepath,$message,FILE_APPEND);
+    }
 	
 }
 
@@ -487,6 +501,7 @@ class view {
 		}
 		$css = file_merger($arrMergerCss,crc32(implode('',$arrMergerCss)).'.css');
 		$js = file_merger($arrMergerJs,crc32(implode('',$arrMergerJs)).'.js');
+        
 		$str = preg_replace('#<link\s*/>#', $css, $str,1);
 		$str = preg_replace('#<script\s*>\s*</script>#', $js, $str,1);
 		return $str;
@@ -628,7 +643,7 @@ class safe {
 }
 
 class mError {
-    protected static $_levels	= ['ERROR' => '1', 'DEBUG' => '2',  'INFO' => '3', 'ALL' => '4'];
+    public static $_levels	= ['ERROR' => '1', 'DEBUG' => '2',  'INFO' => '3', 'ALL' => '4'];
 
     public static function register() {
         set_error_handler([__CLASS__, 'errorHandler'], E_ALL ^ E_NOTICE);
@@ -656,7 +671,7 @@ class mError {
         $msg = "errcode: {$errcode} $errmsg $errfile $errline";
 
         // 记录错误日志
-        self::log($level,$msg);
+        mPHP::log($level,$msg);
 
         // 输出错误信息
         if( $errcode == ($errcode & error_reporting()) ) {
@@ -664,17 +679,4 @@ class mError {
         }
     }
 
-    public static function log($level, $message) {
-        $level = strtoupper($level);
-
-        if ( ! isset(self::$_levels[$level]) ) {
-			return FALSE;
-		}
-
-        $date = date('Y-m-d');
-        $filepath = LOG_PATH ."{$level}-{$date}.log";
-        $message = date('Y-h-d H:i:s') . ' ' . "{$message}\n";
-
-        file_put_contents($filepath,$message,FILE_APPEND);
-    }
 }
