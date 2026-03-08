@@ -1,0 +1,18 @@
+{
+  "name": "my-app/mphp-demo",
+  "description": "A demo project using the mPHP framework via Composer",
+  "type": "project",
+  "require": {
+    "php": ">=7.0",
+    "mo2g/mphp": "dev-master"
+  },
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../../"
+    }
+  ],
+  "config": {
+    "preferred-install": "source"
+  }
+}
