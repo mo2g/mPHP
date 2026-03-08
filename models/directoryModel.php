@@ -32,7 +32,7 @@ class directoryModel {
 				$file_path = realpath($file);//找到对象
 				break;
 			} else {
-				if( $flag_dir ) $this->find($target,$file,$true);//继续匹配
+				if( $flag_dir ) self::find($target,$file,$true);//继续匹配
 			}
 		}
 		if( $file_path ) return $file_path;
@@ -57,7 +57,7 @@ class directoryModel {
 	$ture:当为true时,同时删除目录
 	*/
 	public static function clearDir($dir,$true = false) {
-		$arrInfo = glob($path . '/*');
+		$arrInfo = glob($dir . '/*');
 		foreach( $arrInfo as $file) {
 			is_dir($file) ? self::clearDir($file,$true) : unlink($file);
 		}

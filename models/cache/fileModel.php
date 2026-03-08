@@ -56,7 +56,8 @@ namespace cache {
 		public function delete($key) {
 			$arrData = include $this->fileName;
 			unset($arrData[$key]);
-			file_put_contents($this->fileName, $arrData);
+			$config = "<?php\nreturn " . var_export($arrData, 1) . ';';
+			file_put_contents($this->fileName, $config);
 		}
 
 		public function flush() {

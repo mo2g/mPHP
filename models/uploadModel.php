@@ -140,7 +140,7 @@ class uploadModel {
 				}
 			}
 		} else {
-			if( $val > $safe_size ) {
+			if( $info['size'][0] > $safe_size ) {
 				$this->error[0] = 102;
 				return false;
 			}

@@ -209,7 +209,7 @@ class mPHP {
 
         $date = date('Y-m-d');
         $filepath = LOG_PATH ."{$level}-{$date}.log";
-        $message = date('Y-h-d H:i:s') . ' ' . "{$message}\n";
+        $message = date('Y-m-d H:i:s') . ' ' . "{$message}\n";
 
         file_put_contents($filepath,$message,FILE_APPEND);
     }
@@ -398,7 +398,7 @@ class dao {
 	}
 
 	public function __destruct() {
-		mPHP::$pool->free();
+		if(mPHP::$pool) mPHP::$pool->free();
 		self::$db = false;
 	}
 }
@@ -588,11 +588,6 @@ class view {
 }
 
 class safe {
-	public static $magic_quotes_gpc;
-	
-	public function __construct() {
-		if( !self::$magic_quotes_gpc ) self::$magic_quotes_gpc = get_magic_quotes_gpc();
-	}
 	
 	//简单的过滤，防止get post cookie注入
 	public static function safeGPC() {
@@ -605,18 +600,13 @@ class safe {
 		if( is_array($value) ) {
 			foreach( $value as &$row) self::filter($row);
 		} else {
-			if( self::$magic_quotes_gpc ) {
-				$value = htmlspecialchars(trim($value), ENT_QUOTES);
-			} else {
-				$value = addslashes(htmlspecialchars(trim($value), ENT_QUOTES));
-			}
+			$value = addslashes(htmlspecialchars(trim($value), ENT_QUOTES));
 		}
 	}
 	
 	//还原字符串
 	public static function restore($str) {
-		if( self::$magic_quotes_gpc ) return htmlspecialchars_decode(stripcslashes($str));
-		else return htmlspecialchars_decode($str);
+		return htmlspecialchars_decode(stripslashes($str));
 	}
 	
 	//随机生成验证码
@@ -625,7 +615,7 @@ class safe {
 		$string = 'abcdefghijkmnpqrstuvwxyz2356789';
 		$i = 5;
 		while($i) {
-			$index = rand(0,30);
+		$index = rand(0,29);
 			$strKey .= $string[$index];
 			--$i;
 		}

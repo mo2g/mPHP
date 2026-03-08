@@ -142,7 +142,6 @@ class mysqliModel
 	{
 		++$GLOBALS['arrRun']['db']['delete']['totle'];
 		$strSql = "delete from `$table` where $condition";
-		$this->db->query($strSql);
 		if($reulst = $this->db->query($strSql))
 		{
 			return $reulst;

@@ -347,7 +347,7 @@ namespace cache {
 		 * @return integer
 		 */
 		public function decr($key) {
-			return $this->redis->incr($key);
+			return $this->redis->decr($key);
 		}
 		/*---------------------------键/值操作---------------------------*/
 	}

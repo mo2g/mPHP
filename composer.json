@@ -1,0 +1,32 @@
+{
+    "name": "mo2g/mphp",
+    "description": "A lightweight PHP MVC framework for learning and production use",
+    "type": "library",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "moyancheng",
+            "homepage": "http://mo2g.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.0"
+    },
+    "suggest": {
+        "ext-pdo": "Required for PDO database driver",
+        "ext-mysqli": "Required for MySQLi database driver",
+        "ext-redis": "Required for Redis cache driver",
+        "ext-memcached": "Required for Memcached cache driver",
+        "ext-gd": "Required for GD image processing",
+        "ext-swoole": "Required for Swoole HTTP/WebSocket server"
+    },
+    "autoload": {
+        "classmap": [
+            "mPHP.php",
+            "models/",
+            "inc/"
+        ]
+    },
+    "homepage": "https://github.com/mo2g/mPHP",
+    "keywords": ["php", "mvc", "framework", "lightweight", "swoole"]
+}

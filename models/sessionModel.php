@@ -44,8 +44,11 @@ class sessionModel {
 
 		if( !empty($_GET[$sessionName]) ) {
 			$sessid = $_GET[$sessionName];
+		} elseif( isset( $_COOKIE[$sessionName] ) ) {
+			$sessid = $_COOKIE[$sessionName];
+		} else {
+			$sessid = false;
 		}
-		$sessid = isset( $_COOKIE[$sessionName] ) ? $_COOKIE[$sessionName] : false;
 		$sessid = $sessid_init ? $sessid_init : $sessid;
 
 		if( mPHP::$swoole ) {

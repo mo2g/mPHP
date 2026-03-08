@@ -33,7 +33,7 @@ Imagick:
 class imageModel {
 	public $image;
 	public function __construct() {
-		if( `convert -version` ) $this->image = new Imagick();
+		if( class_exists('ImageMagickCli') || `convert -version` ) $this->image = new ImageMagickCli();
 		elseif( function_exists('getimagesize') ) $this->image = new GD();
 		else return false;
 	}
@@ -115,7 +115,7 @@ class GD {
 
 		//防止pct透明度超出范围
 		if($pct < 0) $pct = 0;
-		else $pct = 100;
+		elseif($pct > 100) $pct = 100;
 		
 		if( $dst_type == 2 ) {
 			$dst_img = imagecreatefromjpeg($dst_img);
@@ -207,7 +207,7 @@ class GD {
 	
 }
 
-class Imagick {
+class ImageMagickCli {
 	public $img;
 	public $type;
 	public $info;
@@ -306,8 +306,8 @@ class Imagick {
 		$intW:生成图宽度
 		$intH:生成图高度
 	*/
-	public function crop($strSrc,$strDst) {
-		$strCommand = "convert $strSrc -crop '$intW x $intH >' $strDst";
+	public function crop($strSrc,$strDst,$intW,$intH) {
+		$strCommand = "convert $strSrc -crop '{$intW}x{$intH}>' $strDst";
 		exec($strCommand);
 	}
 }

@@ -36,7 +36,7 @@ namespace cache {
 		}
 
 		public function delete($key) {
-			return $this->cache->get_all($key);
+			return $this->cache->delete($key);
 		}
 
 		public function flush() {
