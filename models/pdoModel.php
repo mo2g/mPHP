@@ -14,6 +14,11 @@ class pdoModel {
 	public $order;
 	public $limit;
 	public $sql;
+
+    public $link;
+    public $user;
+    public $pass;
+    public $charset;
 	
 	public function __construct($arrConfig) {
 		mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集

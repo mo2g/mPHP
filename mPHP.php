@@ -71,7 +71,7 @@ class mPHP {
 		if(!self::$view) self::$view = new view();
 		if(!self::$CFG) self::$CFG = $GLOBALS['CFG'];
 		if(!self::$debug) self::$debug = isset(self::$CFG['debug']) ? self::$CFG['debug'] : true;
-		spl_autoload_register('self::autoLoader');
+		spl_autoload_register([__CLASS__,'autoLoader']);
 		router::init();
 	}
 	

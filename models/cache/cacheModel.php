@@ -10,7 +10,7 @@ namespace cache {
 
 	class cacheModel {
 
-		public $cahce;
+		public $cache;
 
 		public function __construct($driver = 'file',$config = array() ) {
 			\mPHP::inc( MPHP_PATH.'inc/functions.php' );//加载常用函数集
