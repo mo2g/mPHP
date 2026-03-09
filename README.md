@@ -87,7 +87,6 @@ class indexController extends controller {
 
 ```
 your-project/
-├── index.php                  # Entry point
 ├── libs/
 │   ├── controllers/           # Controller classes
 │   ├── services/              # Business logic layer
@@ -97,10 +96,12 @@ your-project/
 │   ├── cache/                 # Compiled templates & caches
 │   ├── logs/                  # Log files
 │   └── exts/class/            # Third-party classes
-└── static/
-    ├── js/                    # JavaScript files
-    ├── css/                   # Stylesheets
-    └── images/                # Images
+└── public/                    # Public directory
+    ├── index.php              # Entry point
+    └── static/
+        ├── js/                # JavaScript files
+        ├── css/               # Stylesheets
+        └── images/            # Images
 
 mPHP/                          # Framework core
 ├── mPHP.php                   # Core classes (router, view, controller, etc.)
@@ -203,6 +204,16 @@ $value = $cache->get('key');
 // In controller — cache page output for 300 seconds
 self::$view->loadTpl('index', '', 300);
 ```
+## Testing
+
+mPHP includes a PHPUnit test suite:
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+Test coverage includes: input filtering (`safe` class), string utilities, directory operations, file caching, URL routing, and helper functions.
 
 ## License
 

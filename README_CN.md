@@ -87,7 +87,6 @@ class indexController extends controller {
 
 ```
 你的项目/
-├── index.php                  # 入口文件
 ├── libs/
 │   ├── controllers/           # 控制器
 │   ├── services/              # 业务逻辑层
@@ -97,10 +96,12 @@ class indexController extends controller {
 │   ├── cache/                 # 编译后的模板和缓存
 │   ├── logs/                  # 日志文件
 │   └── exts/class/            # 第三方类
-└── static/
-    ├── js/                    # JavaScript 文件
-    ├── css/                   # 样式文件
-    └── images/                # 图片资源
+└── public/                    # 公开目录
+    ├── index.php              # 入口文件
+    └── static/
+        ├── js/                # JavaScript 文件
+        ├── css/               # 样式文件
+        └── images/            # 图片资源
 
 mPHP/                          # 框架核心
 ├── mPHP.php                   # 核心类（router, view, controller 等）
@@ -203,6 +204,17 @@ $value = $cache->get('key');
 // 在控制器中 — 缓存页面输出 300 秒
 self::$view->loadTpl('index', '', 300);
 ```
+
+## 测试
+
+mPHP 包含 PHPUnit 单元测试：
+
+```bash
+composer install
+vendor/bin/phpunit
+```
+
+测试覆盖：输入过滤（`safe` 类）、字符串工具、目录操作、文件缓存、URL 路由、辅助函数。
 
 ## 开源协议
 
