@@ -45,13 +45,13 @@ if( !defined('STATIC_URL') && isset($_SERVER['SERVER_NAME']) ) {
     if( empty($dir) ) {
         $dir = isset( $_SERVER['DOCUMENT_URI'] ) ? dirname($_SERVER['DOCUMENT_URI']) : '';
     }
-	define('STATIC_URL',		"http://{$_SERVER['SERVER_NAME']}{$dir}/static/");//静态目录 URL
+	define('STATIC_URL',		"//{$_SERVER['SERVER_NAME']}{$dir}/static/");//静态目录 URL
 	defined('JS_URL') or define('JS_URL',				STATIC_URL.'js/');	//js脚本 URL
 	defined('CSS_URL') or define('CSS_URL',			STATIC_URL.'css/');	//样式 URL
 	defined('IMAGES_URL') or define('IMAGES_URL',	STATIC_URL.'images/');//图片 URL
 }
 
-define('MODELS_MPHP'			,MPHP_PATH.'models/');
+defined('MODELS_MPHP') or define('MODELS_MPHP'			,MPHP_PATH.'models/');
 
 //核心类
 class mPHP {
