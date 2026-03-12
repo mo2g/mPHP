@@ -266,25 +266,40 @@ class router {
 		if( empty($path_info) ) return -1;
 
 		$path_info = preg_replace('#^/\w+\.php#', '/', $path_info);
-		self::$path_info = $path_info;
+		$path_only = $path_info;
+		if( strpos($path_only, '?') !== false ) {
+			$path_only = parse_url($path_only, PHP_URL_PATH);
+			if( $path_only === null ) $path_only = $path_info;
+		}
+		self::$path_info = $path_only;
 		mPHP::$is_mobile = mobileModel::is_mobile();
 
 		//路由缓存逻辑
 		if( self::cache() ) return 0;
 		// 使用 /?c=index&a=index 方式访问
-		parse_str($path_info,$_get);
-		if( !empty($_get['c']) ) $_GET['c'] = $_get['c'];
-		if( !empty($_get['a']) ) $_GET['a'] = $_get['a'];
-		unset($_get);
-		if( !empty($_GET['c']) || !empty($_GET['a']) ) {
-			return 1;
+		$query = '';
+		if( strpos($path_info, '?') !== false ) {
+			$query = parse_url($path_info, PHP_URL_QUERY);
+		} elseif( strpos($path_info, '=') !== false ) {
+			$query = $path_info;
 		}
+		if( $query !== null && $query !== '' ) {
+			parse_str($query,$_get);
+			if( !empty($_get['c']) ) $_GET['c'] = $_get['c'];
+			if( !empty($_get['a']) ) $_GET['a'] = $_get['a'];
+			unset($_get);
+			if( !empty($_GET['c']) || !empty($_GET['a']) ) {
+				return 1;
+			}
+		}
+		$path_info = $path_only;
 		// ------------------------
 
 		//使用路由规则解析URL
 		//是否开启了路由
 		if( !empty(mPHP::$CFG['router']) ) {
-			$first_param = substr($path_info,1,strpos($path_info,'/',1) - 1); //获取url上的第一个参数，用于对象router中的路由规则；
+			$slash_pos = strpos($path_info,'/',1);
+			$first_param = $slash_pos === false ? ltrim($path_info,'/') : substr($path_info,1,$slash_pos - 1); //获取url上的第一个参数，用于对象router中的路由规则；
 			$config = mPHP::$CFG['router'];
 
 			if( isset($config[$first_param])) {
@@ -368,7 +383,9 @@ class router {
 		if( mPHP::$is_mobile ) {
 			$key .= '(mobile)';
 		}
-        self::$table ->in('router');
+		if( method_exists(self::$table, 'in') ) {
+			self::$table ->in('router');
+		}
 		self::$table->set($key, $arrData);
 	}
 
@@ -524,15 +541,18 @@ class view {
 
 		$tpl_file = TPL_PATH."{$tpl}.tpl.html";
 		$tpl_c_file = TPL_C_PATH . "{$tpl}.tpl.php";
+		$tpl_exists = file_exists($tpl_file);
+		if( !$tpl_exists && file_exists(TPL_MPHP_PATH."{$tpl}.tpl.html") ) {
+			$tpl_file = TPL_MPHP_PATH."{$tpl}.tpl.html";
+			$tpl_exists = true;
+		}
 
 		//判断是否需要重新编译模版
-		if( !file_exists($tpl_c_file) || filemtime($tpl_file) != filemtime($tpl_c_file) ) {
+		$needs_compile = !file_exists($tpl_c_file) || ( $tpl_exists && filemtime($tpl_file) != filemtime($tpl_c_file) );
+		if( $needs_compile ) {
 			$flag = true;
 			//tpl模版 转译 php文件 并保存
-			if( file_exists($tpl_file) ) {
-				$html = file_get_contents($tpl_file);
-			} elseif( file_exists(TPL_MPHP_PATH."{$tpl}.tpl.html") ) {
-				$tpl_file = TPL_MPHP_PATH."{$tpl}.tpl.html";
+			if( $tpl_exists ) {
 				$html = file_get_contents($tpl_file);
 			} else {
 				$flag = false;
@@ -600,7 +620,14 @@ class safe {
 		if( is_array($value) ) {
 			foreach( $value as &$row) self::filter($row);
 		} else {
-			$value = addslashes(htmlspecialchars(trim($value), ENT_QUOTES));
+			$value = trim($value);
+			$value = str_replace("\0", '', $value);
+			$mode = isset(mPHP::$CFG['input_escape']) ? mPHP::$CFG['input_escape'] : '';
+			if( $mode === 'legacy' ) {
+				$value = addslashes(htmlspecialchars($value, ENT_QUOTES));
+			} elseif( $mode === 'html' ) {
+				$value = htmlspecialchars($value, ENT_QUOTES);
+			}
 		}
 	}
 	
