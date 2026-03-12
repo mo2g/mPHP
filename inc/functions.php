@@ -215,6 +215,7 @@ $out:输出文件
 $cache:是否缓存，默认为false,会输出mo2g.js?1389424132
 */
 function file_merger($arrFile,$out,$cache=false) {
+	if( empty($arrFile) ) return '';
 	$url = STATIC_URL;
 	$return = "{$url}merger/{$out}";
 	$dir = STATIC_PATH. 'merger/';
@@ -224,6 +225,8 @@ function file_merger($arrFile,$out,$cache=false) {
 		 $type = 'js';
 	} elseif( substr($arrFile[0],-3) == 'css' ) {
 		$type = 'css';
+	} else {
+		return '';
 	}
 
 	//调试模式,按常规加载js,css
@@ -289,13 +292,15 @@ function file_merger($arrFile,$out,$cache=false) {
 			//需要下载yuicompressor-2.4.8.jar，默认放置LIBS_PATH目录中
 			//文档地址：http://yui.github.io/yuicompressor/
             // 改用 uglifyjs 压缩 JS
+			$tmp_arg = escapeshellarg($tmp);
+			$out_arg = escapeshellarg($out);
 			if( $type == 'js' ) {
 				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type js --charset utf-8 $tmp -o $out";//压缩JS
-                $exec = "uglifyjs {$tmp} -c -m  -o {$out} 2>&1";
+                $exec = "uglifyjs {$tmp_arg} -c -m  -o {$out_arg} 2>&1";
 			} elseif( $type == 'css' ) {
 				//$exec = "java -jar ".STATIC_PATH."yuicompressor-2.4.8.jar --type css --charset utf-8 --nomunge --preserve-semi --disable-optimizations $tmp -o $out";//压缩CSS
 				// $exec = "java -jar " . mPHP::$CFG['yuicompressor'] . " --type css --charset utf-8 $tmp -o $out";//压缩CSS
-                $exec = "uglifycss {$tmp} --output {$out} 2>&1";
+                $exec = "uglifycss {$tmp_arg} --output {$out_arg} 2>&1";
 			}
 			exec($exec,$output) ;
             if( isset($output[0]) ) {
