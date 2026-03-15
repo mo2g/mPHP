@@ -60,6 +60,56 @@ class pdoModel {
 		}
 		return true;
 	}
+
+	private function quoteIdentifier($name) {
+		if( preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) ) {
+			return "`{$name}`";
+		}
+		return $name;
+	}
+
+	private function quoteValue($value) {
+		if( $value === null ) return 'NULL';
+		if( is_bool($value) ) return $value ? '1' : '0';
+		if( is_int($value) || is_float($value) ) return (string)$value;
+		if( $this->db ) return $this->db->quote((string)$value);
+		return "'" . addslashes((string)$value) . "'";
+	}
+
+	private function buildCondition($condition) {
+		if( !is_array($condition) ) return $condition;
+		$parts = [];
+		foreach($condition as $key => $val) {
+			$op = '=';
+			$value = $val;
+			if( is_array($val) ) {
+				$op = isset($val['op']) ? strtoupper(trim($val['op'])) : $op;
+				$value = array_key_exists('value',$val) ? $val['value'] : null;
+			}
+
+			$column = $this->quoteIdentifier($key);
+			if( $value === null ) {
+				if( $op === '!=' || $op === '<>' ) {
+					$parts[] = "{$column} IS NOT NULL";
+				} else {
+					$parts[] = "{$column} IS NULL";
+				}
+				continue;
+			}
+
+			if( $op === 'IN' && is_array($value) ) {
+				$in_vals = [];
+				foreach($value as $v) $in_vals[] = $this->quoteValue($v);
+				$parts[] = "{$column} IN (" . implode(',', $in_vals) . ")";
+				continue;
+			}
+
+			$allowed_ops = ['=','>','<','>=','<=','!=','<>','LIKE'];
+			if( !in_array($op,$allowed_ops,true) ) $op = '=';
+			$parts[] = "{$column} {$op} " . $this->quoteValue($value);
+		}
+		return implode(' AND ', $parts);
+	}
 	
 	public function query($strSql) {
 		if( $this->db ) {
@@ -105,6 +155,7 @@ class pdoModel {
 	public function select($select,$table,$condition = '',$order = array(), $limit = '') {
 		if( $this->db ) {
 			++$GLOBALS['CFG']['db']['select']['totle'];
+			$condition = $this->buildCondition($condition);
 			if( is_array($order) && isset($order['order']) && ( $order['order'] == 'desc' || $order['order'] == 'asc' ) && isset($order['field']) ) {
 				$order = "order by $order[field] $order[order]";
 			} elseif( is_string($order) ) {
@@ -168,12 +219,12 @@ class pdoModel {
 					$values .= $flag ? '(' : ',(';
 					foreach($arr as $key => $value) {
 						if($flagV) {
-							if($flag) $name .= "$key";
-							$values .= "'$value'";
+							if($flag) $name .= $this->quoteIdentifier($key);
+							$values .= $this->quoteValue($value);
 							$flagV = 0;
 						} else {
-							if($flag) $name .= ",$key";
-							$values .= ",'$value'";
+							if($flag) $name .= ',' . $this->quoteIdentifier($key);
+							$values .= ',' . $this->quoteValue($value);
 						}
 					}
 					$values .= ') ';
@@ -183,12 +234,12 @@ class pdoModel {
 			} else {
 				foreach($arrData as $key => $value) {
 					if($flagV) {
-						$name = "$key";
-						$values = "('$value'";
+						$name = $this->quoteIdentifier($key);
+						$values = '(' . $this->quoteValue($value);
 						$flagV = 0;
 					} else {
-						$name .= ",$key";
-						$values .= ",'$value'";
+						$name .= ',' . $this->quoteIdentifier($key);
+						$values .= ',' . $this->quoteValue($value);
 					}
 				}
 				$values .= ") ";
@@ -216,12 +267,12 @@ class pdoModel {
 					$values .= $flag ? '(' : ',(';
 					foreach($arr as $key => $value) {
 						if($flagV) {
-							if($flag) $name .= "$key";
-							$values .= "'$value'";
+							if($flag) $name .= $this->quoteIdentifier($key);
+							$values .= $this->quoteValue($value);
 							$flagV = 0;
 						} else {
-							if($flag) $name .= ",$key";
-							$values .= ",'$value'";
+							if($flag) $name .= ',' . $this->quoteIdentifier($key);
+							$values .= ',' . $this->quoteValue($value);
 						}
 					}
 					$values .= ') ';
@@ -231,12 +282,12 @@ class pdoModel {
 			} else {
 				foreach($arrData as $key => $value) {
 					if($flagV) {
-						$name = "$key";
-						$values = "('$value'";
+						$name = $this->quoteIdentifier($key);
+						$values = '(' . $this->quoteValue($value);
 						$flagV = 0;
 					} else {
-						$name .= ",$key";
-						$values .= ",'$value'";
+						$name .= ',' . $this->quoteIdentifier($key);
+						$values .= ',' . $this->quoteValue($value);
 					}
 				}
 				$values .= ") ";
@@ -265,10 +316,11 @@ class pdoModel {
 			$flag = 1;
 			foreach($arrData as $key => $value) {
 				if($flag) {
-					$data = "$key = '$value'";
+					$data = $this->quoteIdentifier($key) . ' = ' . $this->quoteValue($value);
 					$flag = 0;
-				} else $data .= ",$key = '$value'";
+				} else $data .= ',' . $this->quoteIdentifier($key) . ' = ' . $this->quoteValue($value);
 			}
+			$condition = $this->buildCondition($condition);
 			++$GLOBALS['CFG']['db']['update']['totle'];
 			$this->sql = $strSql = "update $table set $data where $condition";
 			$this->result = $this->exec($strSql);
@@ -287,6 +339,7 @@ class pdoModel {
 	public function delete($table,$condition) {
 		if( $this->db ) {
 			++$GLOBALS['CFG']['db']['delete']['totle'];
+			$condition = $this->buildCondition($condition);
 			$this->sql = $strSql = "delete from $table where $condition";
 			$this->result = $this->exec($strSql);
 			if( $this->result !== false) {

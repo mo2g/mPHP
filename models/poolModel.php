@@ -34,7 +34,8 @@ class poolModel {
 		if( count($this->idle_pool) > 0 ) {
 			//返回空闲的连接
 			++$this->connection_num;
-			return array_pop($this->idle_pool);
+			$this->db = array_pop($this->idle_pool);
+			return $this->db;
 		} else {
 			//不存在空闲连接
 			if( $this->connection_num >= $this->pool_size ) {
@@ -51,8 +52,8 @@ class poolModel {
 
 	//释放连接
 	public function free() {
-		--$this->connection_num;
-		$this->idle_pool[] = $this->db;
+		if( $this->connection_num > 0 ) --$this->connection_num;
+		if( $this->db ) $this->idle_pool[] = $this->db;
 		$this->db = false;
 	}
 }
