@@ -69,6 +69,7 @@ class mPHP {
 	public static $log_buffer_size = 0;
 	public static $log_shutdown_registered = false;
 	public static $log_writing = false;
+	public static $request_id = false;
 	
 	private function __construct() {
         mError::register();
@@ -204,7 +205,42 @@ class mPHP {
 		initModel::initDb();
 	}
 
-    public static function log($level, $message) {
+	public static function requestId() {
+		if( self::$request_id !== false ) return self::$request_id;
+
+		$rid = '';
+		if( !empty($_SERVER['HTTP_X_REQUEST_ID']) ) {
+			$rid = (string)$_SERVER['HTTP_X_REQUEST_ID'];
+		} elseif( !empty($_SERVER['UNIQUE_ID']) ) {
+			$rid = (string)$_SERVER['UNIQUE_ID'];
+		}
+		if( $rid !== '' ) {
+			$rid = preg_replace('/[^a-zA-Z0-9_\-:.]/', '', $rid);
+			$rid = substr($rid, 0, 64);
+		}
+		if( $rid === '' ) {
+			if( function_exists('random_bytes') ) {
+				$rid = bin2hex(random_bytes(8));
+			} else {
+				$rid = substr(md5(uniqid((string)mt_rand(), true)),0,16);
+			}
+		}
+		self::$request_id = $rid;
+		return self::$request_id;
+	}
+
+	public static function logContext() {
+		return array(
+			'request_id' => self::requestId(),
+			'method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '',
+			'uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+			'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
+			'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+			'pid' => function_exists('getmypid') ? getmypid() : 0,
+		);
+	}
+
+    public static function log($level, $message, $context = array()) {
 		if( !defined('LOG_PATH') ) return false;
 		$level = strtoupper(trim((string)$level));
 		if( $level == 'WARN' ) $level = 'WARNING';
@@ -215,6 +251,7 @@ class mPHP {
 		}
 		$message = trim(strtr((string)$message, array("\r\n" => "\n", "\r" => "\n")), "\n");
 		if( $message === '' ) return true;
+		if( !is_array($context) ) $context = array('extra' => $context);
 
 		if( !self::$log_shutdown_registered ) {
 			self::$log_shutdown_registered = true;
@@ -224,7 +261,12 @@ class mPHP {
 
 		$date = date('Y-m-d');
 		$filepath = LOG_PATH ."{$level}-{$date}.log";
-		$line = date('Y-m-d H:i:s') . " [{$level}] {$message}\n";
+		$request_id = self::requestId();
+		$line = date('Y-m-d H:i:s') . " [{$level}] [rid={$request_id}] {$message}";
+		if( !empty($context) ) {
+			$line .= ' ' . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+		}
+		$line .= "\n";
 		if( !isset(self::$log_buffers[$filepath]) ) self::$log_buffers[$filepath] = '';
 		self::$log_buffers[$filepath] .= $line;
 		self::$log_buffer_size += strlen($line);
@@ -711,7 +753,6 @@ class mError {
 	private static $registered = false;
 	private static $handling = false;
 	private static $rendering = false;
-	private static $request_id = null;
 
     public static function register() {
 		if( self::$registered ) return;
@@ -750,24 +791,17 @@ class mError {
 		if( self::$rendering ) return;
 		self::$rendering = true;
 		if( mPHP::$debug ) {
-			$msg = "{$errmsg}<br>{$errfile}:{$errline}<br>request_id=" . self::requestId();
+			$msg = "{$errmsg}<br>{$errfile}:{$errline}<br>request_id=" . mPHP::requestId();
 			if( class_exists('view', false) && mPHP::$view ) {
 				mPHP::error($title, $msg);
 			} else {
 				mPHP::status(500);
-				echo "{$title}: {$errmsg} in {$errfile}:{$errline} request_id=" . self::requestId();
+				echo "{$title}: {$errmsg} in {$errfile}:{$errline} request_id=" . mPHP::requestId();
 			}
 		} else {
 			mPHP::status(500);
 		}
 		mPHP::_exit(true);
-	}
-
-	private static function requestId() {
-		if( self::$request_id === null ) {
-			self::$request_id = substr(md5(uniqid((string)mt_rand(), true)),0,12);
-		}
-		return self::$request_id;
 	}
 
 	private static function errorName($errcode) {
@@ -802,14 +836,7 @@ class mError {
 	}
 
 	private static function requestContext() {
-		return array(
-			'request_id' => self::requestId(),
-			'method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '',
-			'uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
-			'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
-			'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-			'pid' => function_exists('getmypid') ? getmypid() : 0,
-		);
+		return mPHP::logContext();
 	}
 
 	private static function isFatalErrorType($errcode) {
@@ -822,20 +849,20 @@ class mError {
 		self::$handling = true;
 
 		$level = self::level($errcode);
-		$logData = array(
-			'time' => date('c'),
-			'level' => $level,
-			'error_type' => self::errorName($errcode),
+			$logData = array(
+				'time' => date('c'),
+				'level' => $level,
+				'error_type' => self::errorName($errcode),
 			'code' => $errcode,
 			'message' => (string)$errmsg,
 			'file' => (string)$errfile,
 			'line' => (int)$errline,
 			'context' => self::requestContext(),
-		);
-		if( $trace !== '' ) $logData['trace'] = $trace;
+			);
+			if( $trace !== '' ) $logData['trace'] = $trace;
 
-		mPHP::log($level, json_encode($logData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-		self::$handling = false;
+			mPHP::log($level, (string)$errmsg, $logData);
+			self::$handling = false;
 
 		$is_fatal = $force_fatal || self::isFatalErrorType($errcode);
 		if( $is_fatal ) {

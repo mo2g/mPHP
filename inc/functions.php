@@ -351,6 +351,9 @@ function mini_html($html) {
 function mlog($log = '',$file = '') {
 	if( $file == '' ) $file = LOG_PATH.'log.txt';
 	$log = print_r($log,true);
-	$log = "date：" . date("Y-m-d H:i:s") . "\n{$log}\n";
+	$request_id = class_exists('mPHP', false) ? mPHP::requestId() : '';
+	$prefix = "date：" . date("Y-m-d H:i:s");
+	if( $request_id !== '' ) $prefix .= "\nrequest_id：{$request_id}";
+	$log = "{$prefix}\n{$log}\n";
 	file_put_contents($file,$log,FILE_APPEND|LOCK_EX);
 }
