@@ -54,7 +54,6 @@ class uploadModel {
 		'application/zip',
 		'application/x-zip-compressed',
 		
-		'application/octet-stream',//二进制文件,待优化判断
 		'application/pdf',
 		'application/msword',// doc
 		'application/vnd.openxmlformats-officedocument.wordprocessingml.document',//docx
@@ -100,18 +99,32 @@ class uploadModel {
 		$info = $this->info;
 		$safe_type = $this->safe_type;
 		$safe_size = $this->safe_size;
+		$finfo = function_exists('finfo_open') ? finfo_open(FILEINFO_MIME_TYPE) : null;
 		
+		//上传错误码检测
+		if( is_array($info['error']) ) {
+			foreach($info['error'] as $key => $val) {
+				if( $val !== 0 ) {
+					$this->error[$key] = $val;
+					if( $finfo ) finfo_close($finfo);
+					return false;
+				}
+			}
+		}
+
 		//上传渠道检测
 		if( is_array($info['tmp_name']) ) {
 			foreach($info['tmp_name'] as $key => $val) {
 				if( !is_uploaded_file($val) ) {
 					$this->error[$key] = 100;
+					if( $finfo ) finfo_close($finfo);
 					return false;
 				}
 			}
 		} else {
 			if( !is_uploaded_file($info['tmp_name'][0]) ) {
 				$this->error[0] = 100;
+				if( $finfo ) finfo_close($finfo);
 				return false;
 			}
 		}
@@ -119,14 +132,18 @@ class uploadModel {
 		//上传文件类型检测
 		if( is_array($info['type']) ) {
 			foreach($info['type'] as $key => $val) {
-				if( !in_array($val,$safe_type) ) {
+				$detected = $finfo ? finfo_file($finfo, $info['tmp_name'][$key]) : $val;
+				if( !in_array($detected,$safe_type) ) {
 					$this->error[$key] = 101;
+					if( $finfo ) finfo_close($finfo);
 					return false;
 				}
 			}
 		} else {
-			if( !in_array($info['type'],$safe_type) ) {
+			$detected = $finfo ? finfo_file($finfo, $info['tmp_name'][0]) : $info['type'];
+			if( !in_array($detected,$safe_type) ) {
 				$this->error[0] = 101;
+				if( $finfo ) finfo_close($finfo);
 				return false;
 			}
 		}
@@ -134,17 +151,30 @@ class uploadModel {
 		//上传文件大小检测
 		if( is_array($info['size']) ) {
 			foreach($info['size'] as $key => $val) {
+				if( $val == 0 ) {
+					$this->error[$key] = 5;
+					if( $finfo ) finfo_close($finfo);
+					return false;
+				}
 				if( $val > $safe_size ) {
 					$this->error[$key] = 102;
+					if( $finfo ) finfo_close($finfo);
 					return false;
 				}
 			}
 		} else {
+			if( $info['size'][0] == 0 ) {
+				$this->error[0] = 5;
+				if( $finfo ) finfo_close($finfo);
+				return false;
+			}
 			if( $info['size'][0] > $safe_size ) {
 				$this->error[0] = 102;
+				if( $finfo ) finfo_close($finfo);
 				return false;
 			}
 		}
+		if( $finfo ) finfo_close($finfo);
 		
 		return true;
 	}
@@ -177,7 +207,8 @@ class uploadModel {
 	* @return string
 	*/
 	public function getFileExt() {
-		return strtolower( strrchr( $this->file[ "name" ] , '.' ) );
+		$name = isset($this->info['name'][0]) ? $this->info['name'][0] : '';
+		return $name ? strtolower( strrchr( $name , '.' ) ) : '';
 	}
 	
 	/*
