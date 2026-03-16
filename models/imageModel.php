@@ -263,11 +263,13 @@ class ImageMagickCli {
 		$arrConfig['quality']:图片压缩率
 	*/
 	public function resize($src_img,$image,$arrConfig) {
-		$int_dst_w = isset($arrConfig[0]) ? $arrConfig[0] : $arrConfig['width'];
-		$int_dst_h = isset($arrConfig[1]) ? $arrConfig[1] : $arrConfig['height'];
-		$intQuality = isset($arrConfig['quality']) ? $arrConfig['quality'] : 80;//压缩率
+		$int_dst_w = isset($arrConfig[0]) ? (int)$arrConfig[0] : (int)$arrConfig['width'];
+		$int_dst_h = isset($arrConfig[1]) ? (int)$arrConfig[1] : (int)$arrConfig['height'];
+		$intQuality = isset($arrConfig['quality']) ? (int)$arrConfig['quality'] : 80;//压缩率
 		$arrInfo =  $this->getInfo($src_img);//原图宽高（像素）
 		$retio_src = $arrInfo['width'] / $arrInfo['height'];//原图宽高比例
+		$src_arg = escapeshellarg($src_img);
+		$dst_arg = escapeshellarg($image);
 		
 		if( $int_dst_w && $int_dst_h ) {
 			$retio_dst = $int_dst_w / $int_dst_h;//目标图宽高比例
@@ -277,23 +279,31 @@ class ImageMagickCli {
 			//新图宽高比例不变，则等比例缩放
 			//如果原图宽高大于$int_dst_w,$int_dst_h则进行转换
 			if( !$int_dst_w ) {
-				`convert -resize '$int_dst_h >' $src_img $image`;
+				$geometry = escapeshellarg("x{$int_dst_h}>");
+				exec("convert -resize {$geometry} {$src_arg} {$dst_arg}");
 			} else {
-				`convert -resize '$int_dst_w >' $src_img $image`;
+				$geometry = escapeshellarg("{$int_dst_w}>");
+				exec("convert -resize {$geometry} {$src_arg} {$dst_arg}");
 			}
 			
 		} elseif($retio_src > $retio_dst)  {
 			//新图宽高比例小于原图比例，则先等比例缩放，再按指定的尺寸裁剪
 			$retio = $arrInfo['height'] / $int_dst_h;
 			$intWidth = $arrInfo['width'] / $retio;
-			$x = ($intWidth - $int_dst_w) / 2 ;
-			`convert -resize ' x $int_dst_h >' -crop '$int_dst_w x $int_dst_h + $x + 0 ' -quality $intQuality +profile "*" $src_img $image`;
+			$x = (int)round(($intWidth - $int_dst_w) / 2);
+			$geometry = escapeshellarg("x{$int_dst_h}>");
+			$crop = escapeshellarg("{$int_dst_w}x{$int_dst_h}+{$x}+0");
+			$profile = escapeshellarg('*');
+			exec("convert -resize {$geometry} -crop {$crop} -quality {$intQuality} +profile {$profile} {$src_arg} {$dst_arg}");
 		} elseif($retio_src < $retio_dst) {
 			//新图宽高比例大于原图比例，则先等比例缩放，再按指定的尺寸裁剪
 			$retio = $arrInfo['width'] / $int_dst_w;
 			$intHeight = $arrInfo['height'] / $retio;
-			$y = ($intHeight - $int_dst_h) / 2 ;
-			`convert -resize ' $int_dst_w ' -crop '$int_dst_w x $int_dst_h + 0 + $y ' -quality $intQuality +profile "*" $src_img $image`;
+			$y = (int)round(($intHeight - $int_dst_h) / 2);
+			$geometry = escapeshellarg("{$int_dst_w}>");
+			$crop = escapeshellarg("{$int_dst_w}x{$int_dst_h}+0+{$y}");
+			$profile = escapeshellarg('*');
+			exec("convert -resize {$geometry} -crop {$crop} -quality {$intQuality} +profile {$profile} {$src_arg} {$dst_arg}");
 		}
 		$arrConfig =  $this->getInfo($image);//生成图宽高（像素）
 		return $arrConfig;
@@ -307,7 +317,11 @@ class ImageMagickCli {
 		$intH:生成图高度
 	*/
 	public function crop($strSrc,$strDst,$intW,$intH) {
-		$strCommand = "convert $strSrc -crop '{$intW}x{$intH}>' $strDst";
-		exec($strCommand);
+		$intW = (int)$intW;
+		$intH = (int)$intH;
+		$src_arg = escapeshellarg($strSrc);
+		$dst_arg = escapeshellarg($strDst);
+		$crop = escapeshellarg("{$intW}x{$intH}>");
+		exec("convert {$src_arg} -crop {$crop} {$dst_arg}");
 	}
 }

@@ -41,8 +41,9 @@ class sessionModel {
 
 	public function start($sessid_init = false,$path = '/') {
 		$sessionName = isset(mPHP::$CFG['session_name']) ? mPHP::$CFG['session_name'] :  'PHPSESSID';
+		$allow_get = !empty(mPHP::$CFG['allow_get_session']);
 
-		if( !empty($_GET[$sessionName]) ) {
+		if( $allow_get && !empty($_GET[$sessionName]) ) {
 			$sessid = $_GET[$sessionName];
 		} elseif( isset( $_COOKIE[$sessionName] ) ) {
 			$sessid = $_COOKIE[$sessionName];
@@ -53,7 +54,7 @@ class sessionModel {
 
 		if( mPHP::$swoole ) {
 			if( $sessid === false ) {
-				$sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));//SESSION_ID = md5( 客户端IP + 微妙时间戳 + 随机数)
+				$sessid = $this->generateSessionId();
 			}
 			$this->sid = $sessid;
 			self::get();
@@ -66,7 +67,7 @@ class sessionModel {
 				if( is_file($file) ) unlink($file);//删除旧SESSION缓存文件
 				$_SESSION['createtime'] = time();
 				if( $this->renamed_sessionid ) {
-					$this->sid = $sessid = md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
+					$this->sid = $sessid = $this->generateSessionId();
 				}
 			}
 			mPHP::$swoole['response']->cookie($sessionName,$sessid,time() +$this->cookie_lifetime,$path);//SESSION_ID存入cookie
@@ -86,6 +87,13 @@ class sessionModel {
 				session_regenerate_id(true);
 			}
 		}
+	}
+
+	private function generateSessionId() {
+		if( function_exists('random_bytes') ) {
+			return bin2hex(random_bytes(16));
+		}
+		return md5($_SERVER['REMOTE_ADDR'].microtime(1).rand(111111,999999));
 	}
 
 	//获取SESSION

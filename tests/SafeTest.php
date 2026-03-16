@@ -4,11 +4,19 @@ use PHPUnit\Framework\TestCase;
 
 class SafeTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        // Ensure CFG exists and default mode is trim-only
+        mPHP::$CFG = $GLOBALS['CFG'] ?? [];
+        unset(mPHP::$CFG['input_escape']);
+    }
+
     /**
      * Test that filter() escapes HTML special characters
      */
     public function testFilterEscapesHtml()
     {
+        mPHP::$CFG['input_escape'] = 'html';
         $value = '<script>alert("xss")</script>';
         safe::filter($value);
         $this->assertStringNotContainsString('<script>', $value);
@@ -20,6 +28,7 @@ class SafeTest extends TestCase
      */
     public function testFilterEscapesQuotes()
     {
+        mPHP::$CFG['input_escape'] = 'html';
         $value = "test'value";
         safe::filter($value);
         // htmlspecialchars converts ' to &#039; (with ENT_QUOTES)
@@ -33,8 +42,7 @@ class SafeTest extends TestCase
     {
         $value = '  hello  ';
         safe::filter($value);
-        // After htmlspecialchars + addslashes, whitespace should be trimmed
-        $this->assertStringNotContainsString('  ', $value);
+        $this->assertEquals('hello', $value);
     }
 
     /**
@@ -42,6 +50,7 @@ class SafeTest extends TestCase
      */
     public function testFilterArray()
     {
+        mPHP::$CFG['input_escape'] = 'html';
         $arr = ['<b>bold</b>', 'normal', ['<i>nested</i>']];
         safe::filter($arr);
         $this->assertStringNotContainsString('<b>', $arr[0]);
@@ -54,6 +63,7 @@ class SafeTest extends TestCase
      */
     public function testRestoreReversesFilter()
     {
+        mPHP::$CFG['input_escape'] = 'html';
         $original = 'hello world';
         $value = $original;
         safe::filter($value);
@@ -137,6 +147,7 @@ class SafeTest extends TestCase
      */
     public function testSafeGPC()
     {
+        mPHP::$CFG['input_escape'] = 'html';
         $_GET['test'] = '<script>xss</script>';
         $_POST['test'] = "test'injection";
         $_COOKIE['test'] = '  trimme  ';
@@ -144,9 +155,9 @@ class SafeTest extends TestCase
         safe::safeGPC();
 
         $this->assertStringNotContainsString('<script>', $_GET['test']);
-        // htmlspecialchars converts ' to &#039; (with ENT_QUOTES), then addslashes adds backslash
+        // htmlspecialchars converts ' to &#039; (with ENT_QUOTES)
         $this->assertStringContainsString('&#039;', $_POST['test']);
-        $this->assertStringNotContainsString('  trimme  ', $_COOKIE['test']);
+        $this->assertEquals('trimme', $_COOKIE['test']);
 
         // Cleanup
         unset($_GET['test'], $_POST['test'], $_COOKIE['test']);
