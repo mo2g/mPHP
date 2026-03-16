@@ -65,6 +65,10 @@ class mPHP {
 	public static $db = false;
 	public static $pool = false;
 	public static $include_file_lists = array();
+	public static $log_buffers = array();
+	public static $log_buffer_size = 0;
+	public static $log_shutdown_registered = false;
+	public static $log_writing = false;
 	
 	private function __construct() {
         mError::register();
@@ -201,18 +205,53 @@ class mPHP {
 	}
 
     public static function log($level, $message) {
-        $level = strtoupper($level);
+		if( !defined('LOG_PATH') ) return false;
+		$level = strtoupper(trim((string)$level));
+		if( $level == 'WARN' ) $level = 'WARNING';
+		if( !isset(mError::$_levels[$level]) ) $level = 'INFO';
 
-        if ( ! isset(mError::$_levels[$level]) ) {
-			return FALSE;
+		if( is_array($message) || is_object($message) ) {
+			$message = json_encode($message, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 		}
+		$message = trim(strtr((string)$message, array("\r\n" => "\n", "\r" => "\n")), "\n");
+		if( $message === '' ) return true;
 
-        $date = date('Y-m-d');
-        $filepath = LOG_PATH ."{$level}-{$date}.log";
-        $message = date('Y-m-d H:i:s') . ' ' . "{$message}\n";
+		if( !self::$log_shutdown_registered ) {
+			self::$log_shutdown_registered = true;
+			register_shutdown_function([__CLASS__, 'flushLogs']);
+		}
+		if( !is_dir(LOG_PATH) ) @mkdir(LOG_PATH,0755,true);
 
-        file_put_contents($filepath,$message,FILE_APPEND);
+		$date = date('Y-m-d');
+		$filepath = LOG_PATH ."{$level}-{$date}.log";
+		$line = date('Y-m-d H:i:s') . " [{$level}] {$message}\n";
+		if( !isset(self::$log_buffers[$filepath]) ) self::$log_buffers[$filepath] = '';
+		self::$log_buffers[$filepath] .= $line;
+		self::$log_buffer_size += strlen($line);
+
+		$max = isset(self::$CFG['log_buffer_size']) ? (int)self::$CFG['log_buffer_size'] : 65536;
+		if( $max < 1024 ) $max = 1024;
+		if( self::$log_buffer_size >= $max || $level == 'ERROR' || $level == 'CRITICAL' ) {
+			self::flushLogs();
+		}
+		return true;
     }
+
+	public static function flushLogs() {
+		if( self::$log_writing ) return false;
+		if( empty(self::$log_buffers) ) return true;
+
+		self::$log_writing = true;
+		if( !is_dir(LOG_PATH) ) @mkdir(LOG_PATH,0755,true);
+		foreach(self::$log_buffers as $filepath => $content) {
+			if( $content === '' ) continue;
+			@file_put_contents($filepath,$content,FILE_APPEND | LOCK_EX);
+		}
+		self::$log_buffers = array();
+		self::$log_buffer_size = 0;
+		self::$log_writing = false;
+		return true;
+	}
 	
 }
 
@@ -660,40 +699,149 @@ class safe {
 }
 
 class mError {
-    public static $_levels	= ['ERROR' => '1', 'DEBUG' => '2',  'INFO' => '3', 'ALL' => '4'];
+    public static $_levels = array(
+		'CRITICAL' => '1',
+		'ERROR' => '2',
+		'WARNING' => '3',
+		'NOTICE' => '4',
+		'INFO' => '5',
+		'DEBUG' => '6',
+		'ALL' => '7'
+	);
+	private static $registered = false;
+	private static $handling = false;
+	private static $rendering = false;
+	private static $request_id = null;
 
     public static function register() {
-        set_error_handler([__CLASS__, 'errorHandler'], E_ALL ^ E_NOTICE);
+		if( self::$registered ) return;
+		self::$registered = true;
+        set_error_handler([__CLASS__, 'errorHandler'], E_ALL);
         set_exception_handler([__CLASS__, 'exceptionHandler']);
-        // register_shutdown_function([__CLASS__, 'shutdownHandler']);
+        register_shutdown_function([__CLASS__, 'shutdownHandler']);
     }
 
     public static function errorHandler($errcode, $errmsg, $errfile, $errline) {
+		if( (error_reporting() & $errcode) === 0 ) return true;
         self::handler($errcode, $errmsg, $errfile, $errline);
+		return true;
     }
 
     public static function exceptionHandler($exception) {
-        self::handler(error_reporting(), $exception->__toString(), $exception->getFile(), $exception->getLine());
+		$message = $exception instanceof \Throwable ? $exception->getMessage() : (string)$exception;
+		$trace = $exception instanceof \Throwable ? $exception->getTraceAsString() : '';
+		$file = $exception instanceof \Throwable ? $exception->getFile() : __FILE__;
+		$line = $exception instanceof \Throwable ? $exception->getLine() : __LINE__;
+        self::handler(E_ERROR, $message, $file, $line, $trace, true);
+		mPHP::flushLogs();
+		self::renderFatal('Uncaught Exception', $message, $file, $line);
     }
 
-    public static function shutdownHandler($e) {
+    public static function shutdownHandler() {
+		$e = error_get_last();
+		if( is_array($e) && isset($e['type']) && self::isFatalErrorType($e['type']) ) {
+			self::handler($e['type'], $e['message'], $e['file'], $e['line'], '', true);
+			self::renderFatal('Fatal Error', $e['message'], $e['file'], $e['line']);
+		}
+		mPHP::flushLogs();
     }
 
-    public static function handler($errcode, $errmsg, $errfile, $errline) {
-        if ($errcode == E_STRICT) {
-            return;
-        }
+	private static function renderFatal($title, $errmsg, $errfile, $errline) {
+		if( self::$rendering ) return;
+		self::$rendering = true;
+		if( mPHP::$debug ) {
+			$msg = "{$errmsg}<br>{$errfile}:{$errline}<br>request_id=" . self::requestId();
+			if( class_exists('view', false) && mPHP::$view ) {
+				mPHP::error($title, $msg);
+			} else {
+				mPHP::status(500);
+				echo "{$title}: {$errmsg} in {$errfile}:{$errline} request_id=" . self::requestId();
+			}
+		} else {
+			mPHP::status(500);
+		}
+		mPHP::_exit(true);
+	}
 
-        $level = 'error';
-        $msg = "errcode: {$errcode} $errmsg $errfile $errline";
+	private static function requestId() {
+		if( self::$request_id === null ) {
+			self::$request_id = substr(md5(uniqid((string)mt_rand(), true)),0,12);
+		}
+		return self::$request_id;
+	}
 
-        // 记录错误日志
-        mPHP::log($level,$msg);
+	private static function errorName($errcode) {
+		$map = array(
+			E_ERROR => 'E_ERROR',
+			E_WARNING => 'E_WARNING',
+			E_PARSE => 'E_PARSE',
+			E_NOTICE => 'E_NOTICE',
+			E_CORE_ERROR => 'E_CORE_ERROR',
+			E_CORE_WARNING => 'E_CORE_WARNING',
+			E_COMPILE_ERROR => 'E_COMPILE_ERROR',
+			E_COMPILE_WARNING => 'E_COMPILE_WARNING',
+			E_USER_ERROR => 'E_USER_ERROR',
+			E_USER_WARNING => 'E_USER_WARNING',
+			E_USER_NOTICE => 'E_USER_NOTICE',
+			E_STRICT => 'E_STRICT',
+			E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
+			E_DEPRECATED => 'E_DEPRECATED',
+			E_USER_DEPRECATED => 'E_USER_DEPRECATED',
+		);
+		return isset($map[$errcode]) ? $map[$errcode] : 'E_UNKNOWN';
+	}
 
-        // 输出错误信息
-        if( $errcode == ($errcode & error_reporting()) ) {
-            mPHP::error($level,$msg);
-        }
+	private static function level($errcode) {
+		$critical = array(E_ERROR,E_PARSE,E_CORE_ERROR,E_COMPILE_ERROR,E_USER_ERROR);
+		$warning = array(E_WARNING,E_CORE_WARNING,E_COMPILE_WARNING,E_USER_WARNING,E_RECOVERABLE_ERROR);
+		$notice = array(E_NOTICE,E_USER_NOTICE,E_STRICT,E_DEPRECATED,E_USER_DEPRECATED);
+		if( in_array($errcode,$critical,true) ) return 'CRITICAL';
+		if( in_array($errcode,$warning,true) ) return 'WARNING';
+		if( in_array($errcode,$notice,true) ) return 'NOTICE';
+		return 'ERROR';
+	}
+
+	private static function requestContext() {
+		return array(
+			'request_id' => self::requestId(),
+			'method' => isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : '',
+			'uri' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+			'ip' => isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '',
+			'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+			'pid' => function_exists('getmypid') ? getmypid() : 0,
+		);
+	}
+
+	private static function isFatalErrorType($errcode) {
+		$fatal = array(E_ERROR,E_PARSE,E_CORE_ERROR,E_COMPILE_ERROR,E_USER_ERROR,E_RECOVERABLE_ERROR);
+		return in_array($errcode, $fatal, true);
+	}
+
+    public static function handler($errcode, $errmsg, $errfile, $errline, $trace = '', $force_fatal = false) {
+        if( self::$handling ) return;
+		self::$handling = true;
+
+		$level = self::level($errcode);
+		$logData = array(
+			'time' => date('c'),
+			'level' => $level,
+			'error_type' => self::errorName($errcode),
+			'code' => $errcode,
+			'message' => (string)$errmsg,
+			'file' => (string)$errfile,
+			'line' => (int)$errline,
+			'context' => self::requestContext(),
+		);
+		if( $trace !== '' ) $logData['trace'] = $trace;
+
+		mPHP::log($level, json_encode($logData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+		self::$handling = false;
+
+		$is_fatal = $force_fatal || self::isFatalErrorType($errcode);
+		if( $is_fatal ) {
+			mPHP::flushLogs();
+			self::renderFatal('PHP Error', (string)$errmsg, (string)$errfile, (int)$errline);
+		}
     }
 
 }
