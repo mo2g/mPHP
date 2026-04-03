@@ -135,6 +135,7 @@ class mPHP {
 		} elseif( is_file(INDEX_PATH.'libs/exts/class/'.$file) ) {
 			include INDEX_PATH.'libs/exts/class/'.$file;//加载外部引用类
 		} else {
+            self::error('访问错误！', "未定义操作 $file");
 			return false;
 		}
 	}
