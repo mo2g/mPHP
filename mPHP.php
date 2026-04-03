@@ -464,10 +464,12 @@ class router {
 		if( mPHP::$is_mobile ) {
 			$key .= '(mobile)';
 		}
-		if( method_exists(self::$table, 'in') ) {
+		if( is_object(self::$table) && method_exists(self::$table, 'in') ) {
 			self::$table ->in('router');
 		}
-		self::$table->set($key, $arrData);
+		if (is_object(self::$table)) {
+			self::$table->set($key, $arrData);
+		}
 	}
 
 }
