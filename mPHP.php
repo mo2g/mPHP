@@ -141,6 +141,16 @@ class mPHP {
 	}
 
 	public static function error($title = '',$msg = '') {
+		$logData = array(
+			'time' => date('c'),
+			'level' => 'ERROR',
+			'error_type' => 'FRAMEWORK_ERROR',
+			'message' => $title . ' ' . $msg,
+			'context' => self::logContext(),
+		);
+		self::log('ERROR', "{$title}: {$msg}", $logData);
+		self::flushLogs();
+
 		if( self::$debug ) {
 			self::status(503);
 			self::$view->data['title'] = $title;
@@ -755,10 +765,12 @@ class mError {
 	private static $registered = false;
 	private static $handling = false;
 	private static $rendering = false;
+	private static $reservedMemory;
 
     public static function register() {
 		if( self::$registered ) return;
 		self::$registered = true;
+		self::$reservedMemory = str_repeat(' ', 1024 * 512); // preallocate 512KB
         set_error_handler([__CLASS__, 'errorHandler'], E_ALL);
         set_exception_handler([__CLASS__, 'exceptionHandler']);
         register_shutdown_function([__CLASS__, 'shutdownHandler']);
@@ -781,6 +793,7 @@ class mError {
     }
 
     public static function shutdownHandler() {
+		self::$reservedMemory = null; // Free memory so we have enough to process logging
 		$e = error_get_last();
 		if( is_array($e) && isset($e['type']) && self::isFatalErrorType($e['type']) ) {
 			self::handler($e['type'], $e['message'], $e['file'], $e['line'], '', true);

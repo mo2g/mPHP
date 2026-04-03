@@ -250,7 +250,7 @@ class pdoModel {
 				return $this;
 			}
 			++$GLOBALS['CFG']['db']['insert']['error'];
-			if($GLOBALS['CFG']['debug']) $this->error($strSql);
+			$this->error($strSql);
 			return false;
 		} else {
 			goto_503();
@@ -298,7 +298,7 @@ class pdoModel {
 				return $this;
 			}
 			++$GLOBALS['CFG']['db']['insert']['error'];
-			if($GLOBALS['CFG']['debug']) $this->error($strSql);
+			$this->error($strSql);
 			return false;
 		} else {
 			goto_503();
@@ -360,19 +360,14 @@ class pdoModel {
 	
 	//提示错误信息
 	private function error($strSql) {
-		//echo $this->sql;
-		/*
-		echo ,$strSql,
-			'</p><p><font style="color:red">错误信息：</font>',$this->db->error,'</p></div>';
-		return false;
-		*/
-		/*
-		PDOException $e;
-		echo "<div style='background: none repeat scroll 0 0 #FFFFB0;'>
-						<p><font style='color:red'>运行出错:</font></p>
-						<pre>{$e->getMessage()}</pre>
-					</div>";
-		*/
+		$errorInfo = $this->db ? $this->db->errorInfo() : array();
+		$errMsg = isset($errorInfo[2]) ? $errorInfo[2] : 'Unknown database error';
+		if( class_exists('mPHP') ) {
+			mPHP::log('ERROR', 'SQL_ERROR: ' . $errMsg, array('sql' => $strSql, 'error_info' => $errorInfo));
+		}
+		if( isset($GLOBALS['CFG']['debug']) && $GLOBALS['CFG']['debug'] ) {
+			echo "<div style='color:red;'>SQL_ERROR: {$errMsg}</div><br>SQL: {$strSql}";
+		}
 	}
 	
 	/*
