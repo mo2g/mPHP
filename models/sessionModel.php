@@ -101,7 +101,9 @@ class sessionModel {
 		 $data = 'a:0:{}';
 		if( $this->cache ) {
 			$key = $this->prefix . $this->sid;
-			$data = $this->cache->get($key);
+			$raw = $this->cache->get($key);
+			// 未命中时 get() 返回 false，不能直接 unserialize
+			if( $raw !== false && $raw !== null && $raw !== '' ) $data = $raw;
 		} else {
 			$file = $this->save_path . '/' . $this->prefix . $this->sid;
 			if( file_exists($file) ) {
@@ -111,15 +113,18 @@ class sessionModel {
 				}
 			}
 		}
-		$this->session = $_SESSION = unserialize($data);
+		$arrSession = @unserialize($data);
+		$this->session = $_SESSION = is_array($arrSession) ? $arrSession : array();
 	}
 
 	//保存SESSION
 	public function save($timeout = 0) {
 		if( $this->cache ) {
+			// 原生 SESSION 分支下 sid 为空，此时数据由 PHP 自己落盘，不重复写缓存
+			if( empty($_SESSION) || empty($this->sid) ) return 0;
 			$key = $this->prefix . $this->sid;
-			$time = $timeout ? $timeout + time() : 0;
-			$this->cache->set($key,serialize($_SESSION),$time);
+			// 第三个参数是「存活秒数」，不是绝对时间戳
+			return $this->cache->set($key,serialize($_SESSION),(int)$timeout);
 		} else {
 			$time = time();
 			$file = $this->save_path . '/' . $this->prefix . $this->sid;
@@ -131,6 +136,9 @@ class sessionModel {
 
 	public function delete() {
 		if( $this->cache ) {
+			if( empty($this->sid) ) return;
+			$key = $this->prefix . $this->sid;
+			$this->cache->delete($key);
 		} else {
 			$file = $this->save_path . '/' . $this->prefix . $this->sid;
 			if( file_exists($file) ) unlink($file);

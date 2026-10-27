@@ -1,5 +1,10 @@
 <?php
 /*
+ * 【deprecated】Memcached 驱动
+ * 框架推荐的缓存后端为 Redis（见 models/cache/redisModel.php），本类仅保留兼容。
+ * 新代码请使用：M('cache\redis', mPHP::$CFG['redis'])
+ */
+/*
 作者:moyancheng
 创建时间:2013-05-13
 最后更新时间:2015-07-28
