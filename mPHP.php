@@ -60,6 +60,7 @@ class mPHP {
 	public static $swoole = false;
 	public static $debug = false;
 	public static $view = false;
+	public static $response = false;
 	public static $exit = false;
 	public static $is_mobile = false;
 	public static $db = false;
@@ -72,10 +73,15 @@ class mPHP {
 	public static $request_id = false;
 	
 	private function __construct() {
+        self::inc(MPHP_PATH.'inc/functions.php');
+        self::inc(MPHP_PATH.'inc/response.php');
+        if(!self::$response) self::$response = new Response();
         mError::register();
 		if(!self::$view) self::$view = new view();
 		if(!self::$CFG) self::$CFG = $GLOBALS['CFG'];
 		if(!self::$debug) self::$debug = isset(self::$CFG['debug']) ? self::$CFG['debug'] : true;
+		self::inc(MPHP_PATH.'inc/sqlProfiler.php');
+		sqlProfiler::boot(self::$CFG);
 		spl_autoload_register([__CLASS__,'autoLoader']);
 		router::init();
 	}
@@ -91,8 +97,7 @@ class mPHP {
 			$controller = new $controller;
 			call_user_func(array($controller,$action));
 		} else {
-			self::error('Action不存在！', "c={$controller} a={$action} 未定义!");
-			self::_exit();
+			throw new NotFoundException("Action 不存在：{$controller}::{$action}");
 		}
 	}
 
@@ -106,22 +111,19 @@ class mPHP {
 			if( is_file(CONTROLLERS_PATH.$file) ) {
 				include CONTROLLERS_PATH.$file;
 			} else {
-				self::error('控制器不存在！', "{$file} 不存在!");
-				self::_exit();
+				throw new NotFoundException("控制器不存在：{$file}");
 			}
 		} elseif(substr($file,-11) == 'Service.php') {
 			if( is_file(SERVICES_PATH.$file) ) {
 				include SERVICES_PATH.$file;
 			} else {
-				self::error('service模块不存在！', "{$file} 不存在!");
-				self::_exit();
+				throw new HttpException(500, "service 模块不存在：{$file}");
 			}
 		} elseif(substr($file,-7) == 'Dao.php') {
 			if( is_file(DAOS_PATH.$file) ) {
 				include DAOS_PATH.$file;
 			} else {
-				self::error('dao模块不存在！', "{$file} 不存在!");
-				self::_exit();
+				throw new HttpException(500, "dao 模块不存在：{$file}");
 			}
 		} elseif( substr($file,-9) == 'Model.php' ) {
 			if( is_file(MODELS_MPHP.$file) ) {
@@ -129,8 +131,7 @@ class mPHP {
 			} elseif( is_file(MODELS_PATH.$file) ) {
 				include MODELS_PATH.$file;
 			} else {
-				self::error('Model模块不存在！', "{$file} 不存在!");
-				self::_exit();
+				throw new HttpException(500, "model 模块不存在：{$file}");
 			}
 		} elseif( is_file(INDEX_PATH.'libs/exts/class/'.$file) ) {
 			include INDEX_PATH.'libs/exts/class/'.$file;//加载外部引用类
@@ -151,15 +152,57 @@ class mPHP {
 		self::log('ERROR', "{$title}: {$msg}", $logData);
 		self::flushLogs();
 
-		if( self::$debug ) {
-			self::status(503);
-			self::$view->data['title'] = $title;
-			self::$view->data['msg'] = $msg;
-			self::$view->loadTpl('error');
-		} else {
-			function_exists('goto_404') ? goto_404() : self::status(404);
+		throw new HttpException(503, $title . ($msg !== '' ? ' ' . $msg : ''));
+	}
+
+	/**
+	 * 把 HTTP 异常渲染成页面（由入口统一调用）
+	 */
+	public static function renderHttpException($e) {
+		self::status($e->status);
+		if( !empty($e->headers) ) {
+			foreach($e->headers as $key => $value) self::header($key, $value);
 		}
-		self::_exit();
+
+		if( !function_exists('render_error_page') ) {
+			$file = INDEX_PATH . 'libs/exts/function/plus.php';
+			if( is_file($file) ) include_once $file;
+		}
+		if( function_exists('render_error_page') ) {
+			render_error_page($e);
+			return;
+		}
+
+		echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' . (int)$e->status . '</title></head>';
+		echo '<body><h1>' . (int)$e->status . '</h1><p>' . htmlspecialchars($e->getMessage(), ENT_QUOTES, 'UTF-8') . '</p></body></html>';
+	}
+
+	/**
+	 * 未捕获异常：记日志 + 500
+	 */
+	public static function handleThrowable($e) {
+		$logData = array(
+			'time' => date('c'),
+			'level' => 'ERROR',
+			'error_type' => get_class($e),
+			'message' => $e->getMessage(),
+			'file' => $e->getFile(),
+			'line' => $e->getLine(),
+			'context' => self::logContext(),
+		);
+		self::log('ERROR', get_class($e) . ': ' . $e->getMessage(), $logData);
+		self::flushLogs();
+
+		self::status(500);
+		if( self::$debug ) {
+			echo '<pre style="padding:20px;font:13px/1.6 monospace;white-space:pre-wrap">';
+			echo htmlspecialchars(get_class($e) . ': ' . $e->getMessage(), ENT_QUOTES, 'UTF-8'), "\n\n";
+			echo htmlspecialchars($e->getFile() . ':' . $e->getLine(), ENT_QUOTES, 'UTF-8'), "\n\n";
+			echo htmlspecialchars($e->getTraceAsString(), ENT_QUOTES, 'UTF-8');
+			echo '</pre>';
+		} else {
+			echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>500</title></head><body><h1>500</h1></body></html>';
+		}
 	}
 
 	//同一个文件，只加载一次
@@ -173,41 +216,49 @@ class mPHP {
 	没有执行返回：false
 	*/
 	public static function _exit($true = 0) {
-		if( self::$swoole ) {
-			if( self::$exit ) {
-				return true;
-			} else {
-				self::$exit = true;
-				return false;
-			}
-		} else {
-			if( self::$exit ) {
-				$true ? exit : true;
-			} else {
-				self::$exit = true;
-				return $true ? exit : false;
-			}
-		}
+		self::$exit = true;
+		throw new StopException();
 	}
 
 	/*
-	swoole拓展会导致php原生函数header失效
-	*/
+	 * 响应头写入 Response 对象，不再直接调用 header()
+	 */
 	public static function header($key,$value) {
-		if( self::$swoole ) {
-			self::$swoole['response']->header($key,$value);
-		} else {
-			header($key . ': ' . $value );
-		}
+		if( self::$response ) self::$response->setHeader($key,$value);
+	}
+
+	public static function setcookie($name,$value,$expire=0,$path='/',$domain='',$secure=false,$httponly=false) {
+		if( self::$response ) self::$response->setCookie($name,$value,$expire,$path,$domain,$secure,$httponly);
+	}
+
+	/*
+	 * 跳转：抛异常由入口统一处理，兼容常驻运行时
+	 */
+	public static function redirect($url,$status=302) {
+		throw new RedirectException($url,$status);
 	}
 
 	public static function status($http_status_code) {
-		httpModel::status($http_status_code);
+		if( self::$response ) self::$response->setStatus($http_status_code);
 	}
 
 	public static function init() {
 		if( !self::$mPHP ) self::$mPHP = new mPHP();
 		return self::$mPHP;
+	}
+
+	/*
+	 * 请求级重置：常驻运行时（Swoole/Webman）在两次请求之间调用
+	 */
+	public static function reset() {
+		self::$view = new view();
+		self::$response = new Response();
+		self::$is_mobile = false;
+		self::$request_id = false;
+		self::$exit = false;
+		router::$path_info = '';
+		if( class_exists('container', false) ) container::reset();
+		if( class_exists('sqlProfiler', false) ) sqlProfiler::reset();
 	}
 	
 	public static function initSite() {
@@ -315,17 +366,7 @@ class router {
 	public static $table = false;
 
 	public static function init() {
-		if( defined('SWOOLE_DEAMON') ) {
-			$table = new swoole_table(1024);
-			$table->column('ctime', swoole_table::TYPE_INT, 4);	//缓存创建时间戳
-			$table->column('etime', swoole_table::TYPE_INT, 4);	//缓存失效时间戳
-			$table->column('file', swoole_table::TYPE_STRING, 64);	//缓存文件路径
-			$table->create();
-			self::$table = $table;
-		} else {
-			self::$table = new cache\cacheModel('file');
-			self::$table ->in('router');
-		}
+		// 路由表已废弃：nginx 负责静态文件，控制器负责路由，无需再维护索引
 	}
 
 	public static function run() {
@@ -365,8 +406,6 @@ class router {
 		self::$path_info = $path_only;
 		mPHP::$is_mobile = mobileModel::is_mobile();
 
-		//路由缓存逻辑
-		if( self::cache() ) return 0;
 		// 使用 /?c=index&a=index 方式访问
 		$query = '';
 		if( strpos($path_info, '?') !== false ) {
@@ -376,12 +415,15 @@ class router {
 		}
 		if( $query !== null && $query !== '' ) {
 			parse_str($query,$_get);
-			if( !empty($_get['c']) ) $_GET['c'] = $_get['c'];
-			if( !empty($_get['a']) ) $_GET['a'] = $_get['a'];
-			unset($_get);
-			if( !empty($_GET['c']) || !empty($_GET['a']) ) {
+			// 只有 query 里真的带了 c / a 才走「查询串路由」，
+			// 否则 /search?wd=php 会被入口处的默认 c=blog 抢先短路
+			if( !empty($_get['c']) || !empty($_get['a']) ) {
+				if( !empty($_get['c']) ) $_GET['c'] = $_get['c'];
+				if( !empty($_get['a']) ) $_GET['a'] = $_get['a'];
+				unset($_get);
 				return 1;
 			}
+			unset($_get);
 		}
 		$path_info = $path_only;
 		// ------------------------
@@ -412,8 +454,9 @@ class router {
 
 			$splits = explode($mark, trim($path_info, $mark));
 
-			if( empty($_GET['c']) ) $_GET['c'] = empty($splits[0]) ? self::$controller : $splits[0];
-			if( empty($_GET['a']) ) $_GET['a'] = empty($splits[1]) ? self::$action : $splits[1];
+			// 路由解析结果优先于入口处的默认值（否则 /view/1/ 会被默认的 c=blog 覆盖）
+			$_GET['c'] = empty($splits[0]) ? (empty($_GET['c']) ? self::$controller : $_GET['c']) : $splits[0];
+			$_GET['a'] = empty($splits[1]) ? (empty($_GET['a']) ? self::$action  : $_GET['a']) : $splits[1];
 
 			$count = count($splits);
 			for($i = 2; $i < $count; $i += 2) {
@@ -443,45 +486,6 @@ class router {
 
 		return 4;
 	}
-
-	public static function cache() {
-		$cache = false;
-		if( !mPHP::$debug && ( $data = self::get() ) && $data['etime'] > $_SERVER['REQUEST_TIME'] && file_exists($data['file']) ) {
-			$createTime = date("D, d M Y H:i:s",$data['ctime']);
-			mPHP::header('Cache-Control','max-age=0');
-			mPHP::header('Last-Modified',$createTime);
-			if( isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $createTime ) {
-				mPHP::status(304);
-			} else {
-				include $data['file'];
-			}
-			mPHP::_exit();
-			$cache = true;//相关控制器已缓存
-		}
-		return $cache;
-	}
-
-	public static function get() {
-		$key = self::$path_info;
-		if( mPHP::$is_mobile ) {
-			$key .= '(mobile)';
-		}
-		return self::$table->get($key);
-	}
-
-	public static function set($arrData) {
-		$key = self::$path_info;
-		if( mPHP::$is_mobile ) {
-			$key .= '(mobile)';
-		}
-		if( is_object(self::$table) && method_exists(self::$table, 'in') ) {
-			self::$table ->in('router');
-		}
-		if (is_object(self::$table)) {
-			self::$table->set($key, $arrData);
-		}
-	}
-
 }
 
 
@@ -535,6 +539,8 @@ class db {
 */
 class view {
 	public $is_cache = false;
+	public $includeCount = 0;
+	public $includeMs = 0.0;
 	public $is_merger = false;
 	public $is_mini_html = false;
 
@@ -556,23 +562,9 @@ class view {
 			if( $this->is_mini_html ) $arrData['html'] = mini_html( $arrData['html'] );
 		}
 
-		//路由缓存逻辑
-		if( $time ) {
-			$ctime = $_SERVER['REQUEST_TIME'];
-			$date = date('Y-m-d H:i:s');
-			$arrData['html'] .= "<!-- mPHP html cache $date -->";
-			$strDir = dirname($arrData['file']);
-			if( !is_dir($strDir) ) mkdir($strDir,0775,true);
-			file_put_contents($arrData['file'],$arrData['html']);
-			mPHP::header('Cache-Control','max-age=0');
-			mPHP::header('Last-Modified',date("D, d M Y H:i:s",$ctime));
-
-			$data = array(
-				'ctime' => $ctime , 
-				'etime' => $ctime + $time , 
-				'file' => $arrData['file']
-			);
-			router::set($data);
+		if( class_exists('sqlProfiler', false) && sqlProfiler::enabled() ) {
+			sqlProfiler::emitHeaders();
+			$arrData['html'] .= sqlProfiler::debugHtml();
 		}
 		echo $arrData['html'];
 	}
@@ -628,6 +620,7 @@ class view {
 	TPL_C_PATH.'b.tpl.php'文件
 	*/
 	public function _include($tpl, $file = '') {
+		$__t0 = microtime(true);
 		if( isset($this->data) && is_array($this->data) ) {
 			foreach($this->data as $key => $val) $$key = $val;
 		}
@@ -641,7 +634,8 @@ class view {
 		}
 
 		//判断是否需要重新编译模版
-		$needs_compile = !file_exists($tpl_c_file) || ( $tpl_exists && filemtime($tpl_file) != filemtime($tpl_c_file) );
+		// 源模板不存在时也必须重编译：否则删掉/改名一个 tpl 后，旧编译产物会被一直复用
+		$needs_compile = !file_exists($tpl_c_file) || !$tpl_exists || ( filemtime($tpl_file) != filemtime($tpl_c_file) );
 		if( $needs_compile ) {
 			$flag = true;
 			//tpl模版 转译 php文件 并保存
@@ -670,28 +664,14 @@ class view {
 
 		$arrData['file'] = $file;
 		$arrData['html'] = $html;
+		$this->includeCount++;
+		$this->includeMs += (microtime(true) - $__t0) * 1000;
 		return $arrData;
 	}
 	
 	//应该优先使用路由缓存功能，方便，性能也更好
 	public function cache($file,$cacheTime) {
-		$this->is_cache = true;
-		$time = $_SERVER['REQUEST_TIME'];
-
-		$createTime = file_exists($file) ? filemtime($file) : 0;
-		if( ($createTime + $cacheTime >= $time ) && !mPHP::$debug ) {
-			$createTime = date("D, d M Y H:i:s",$createTime);
-			mPHP::header('Cache-Control','max-age=0');
-			mPHP::header('Last-Modified',$createTime);
-			if( isset($_SERVER['HTTP_IF_MODIFIED_SINCE']) && $_SERVER['HTTP_IF_MODIFIED_SINCE'] == $createTime ) {
-				mPHP::status(304);
-			} else {
-				include $file;
-			}
-			mPHP::_exit();
-			return true;
-		}
-		return false;
+		return false;// HTML 文件缓存已移除，缓存由 nginx/静态文件负责
 	}
 	
 	//清除所有静态Html
@@ -805,18 +785,24 @@ class mError {
 	private static function renderFatal($title, $errmsg, $errfile, $errline) {
 		if( self::$rendering ) return;
 		self::$rendering = true;
+		mPHP::status(500);//status() 定义在 mPHP 上，写成 self:: 会触发「未定义方法」二次致命错误
+		self::flushLogs();
+		// 致命错误发生在 shutdown / error handler 里，此路径必须直接 exit，不能再抛异常
 		if( mPHP::$debug ) {
 			$msg = "{$errmsg}<br>{$errfile}:{$errline}<br>request_id=" . mPHP::requestId();
-			if( class_exists('view', false) && mPHP::$view ) {
-				mPHP::error($title, $msg);
-			} else {
-				mPHP::status(500);
-				echo "{$title}: {$errmsg} in {$errfile}:{$errline} request_id=" . mPHP::requestId();
+			try {
+				if( class_exists('view', false) && mPHP::$view ) {
+					self::$view->data['title'] = $title;
+					self::$view->data['msg']   = $msg;
+					self::$view->loadTpl('error');
+				} else {
+					echo "{$title}: {$errmsg} in {$errfile}:{$errline} request_id=" . mPHP::requestId();
+				}
+			} catch (Throwable $e) {
+				echo "{$title}: {$errmsg} in {$errfile}:{$errline}";
 			}
-		} else {
-			mPHP::status(500);
 		}
-		mPHP::_exit(true);
+		exit;
 	}
 
 	private static function errorName($errcode) {

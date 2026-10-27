@@ -176,37 +176,43 @@ function P($val,$true = true) {
 //返回唯一的 Service 实例
 //同一个 Service 只实例化一次
 function S($service) {
-	static $arrService = array();
 	$service = "{$service}Service";
-	if( !isset( $arrService[$service] ) ) $arrService[$service] = new $service;
-	return $arrService[$service];
+	return container::get($service, function() use ($service) {
+		return new $service;
+	});
 }
-//返回唯一的 Dao 实例
-//同一个 Dao 只实例化一次
+
 function D($dao) {
-	static $arrDao = array();
 	$dao = "{$dao}Dao";
-	if( !isset( $arrDao[$dao] ) ) $arrDao[$dao] = new $dao;
-	return $arrDao[$dao];
+	return container::get($dao, function() use ($dao) {
+		return new $dao;
+	});
 }
-//返回唯一的 Model 实例
-//同一个 Model 只实例化一次
+
 function M($model,$arrConfig = array() ) {
-	static $arrModel = array();
 	$model = "{$model}Model";
-	$key = $model;
-	if( $arrConfig ) {
-		$key .= serialize($arrConfig);
-		if( !isset( $arrModel[$key] ) ) {
-			$arrModel[$key] = new $model($arrConfig);
-		}
-	} else {
-		if( !isset( $arrModel[$model] ) ) {
-			$arrModel[$model] = new $model();
-		}
-	}
-	return $arrModel[$key];
+	$key = $arrConfig ? $model . serialize($arrConfig) : $model;
+	return container::get($key, function() use ($model,$arrConfig) {
+		return $arrConfig ? new $model($arrConfig) : new $model();
+	});
 }
+
+/**
+ * 请求级容器：替代函数内 static 变量，便于常驻运行时 reset
+ */
+class container {
+	public static $items = array();
+
+	public static function get($key, $factory) {
+		if( !array_key_exists($key, self::$items) ) self::$items[$key] = $factory();
+		return self::$items[$key];
+	}
+
+	public static function reset() {
+		self::$items = array();
+	}
+}
+
 
 /*
 功能：多个js或css，合并为一个js或css，并压缩

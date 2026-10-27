@@ -111,9 +111,32 @@ class pdoModel {
 		return implode(' AND ', $parts);
 	}
 	
+	/**
+	 * 统一 SQL 执行入口：开启 debug_sql 时记录耗时，关闭时零额外开销
+	 */
+	private function runQuery($strSql) {
+		if( !class_exists('sqlProfiler', false) || !sqlProfiler::enabled() ) {
+			return $this->db->query($strSql);
+		}
+		$start = microtime(true);
+		$result = $this->db->query($strSql);
+		sqlProfiler::record($strSql, (microtime(true)-$start)*1000, $result ? $result->rowCount() : 0, $result === false);
+		return $result;
+	}
+
+	private function runExec($strSql) {
+		if( !class_exists('sqlProfiler', false) || !sqlProfiler::enabled() ) {
+			return $this->db->exec($strSql);
+		}
+		$start = microtime(true);
+		$result = $this->db->exec($strSql);
+		sqlProfiler::record($strSql, (microtime(true)-$start)*1000, $result === false ? 0 : (int)$result, $result === false);
+		return $result;
+	}
+
 	public function query($strSql) {
 		if( $this->db ) {
-			$result = $this->db->query($strSql);
+			$result = $this->runQuery($strSql);
 			if($result === false) {
 				if( $this->checkConnection() === false ) {
 					//连接已断开，重新连接数据库
@@ -133,7 +156,7 @@ class pdoModel {
 
 	public function exec($strSql) {
 		if( $this->db ) {
-			$result = $this->db->exec($strSql);
+			$result = $this->runExec($strSql);
 			if($result === false) {
 				if( $this->checkConnection() === false ) {
 					//连接已断开，重新连接数据库
@@ -172,7 +195,7 @@ class pdoModel {
 				where $condition 
 				$order 
 				$limit";
-			if($this->result = $this->db->query($strSql)) {
+			if($this->result = $this->runQuery($strSql)) {
 				return $this;
 			}
 			++$GLOBALS['CFG']['db']['select']['error'];
